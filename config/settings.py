@@ -18,7 +18,7 @@ class Settings:
     # --- DeepSeek ---
     deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
     deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-    model: str = os.getenv("DEEPSEEK_MODEL", "DeepSeek-V4-Pro")
+    model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
     reasoner_model: str = os.getenv("DEEPSEEK_REASONER_MODEL", "deepseek-reasoner")
 
     # --- Behavior ---
