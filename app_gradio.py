@@ -34,9 +34,9 @@ except Exception:
     _KEY = os.environ.get("OPENROUTER_API_KEY", os.environ.get("DEEPSEEK_API_KEY", ""))
 
 os.environ["DEEPSEEK_API_KEY"] = _KEY
-os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://openrouter.ai/api/v1")
+os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 # ★ مدلِ تست (طبق درخواست):
-os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "openai/gpt-oss-120b:free")
+os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
 
 # ★ لوگوی شرکت: مسیرِ فایل (مثلاً "assets/logo.png") یا URL. خالی = نشانِ پیش‌فرض.
 LOGO_SRC = "data/logo.png"
