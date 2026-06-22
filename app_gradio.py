@@ -209,7 +209,7 @@ def start_ticket(summary: str, description: str, history: list):
     history = history + [
         {"role": "user", "content": f"**Subject:** {summary or '—'}\n\n**Description:** {description or '—'}"}
     ]
-    yield history + [{"role": "assistant", "content": "🔎 _Analyzing your ticket…_"}], None, "", gr.update(
+    yield history + [{"role": "assistant", "content": "🔎 _Analyzing your ticket_"}], None, "", gr.update(
         visible=False
     ), "", {}
     try:
