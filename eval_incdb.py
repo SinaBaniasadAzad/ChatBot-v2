@@ -103,9 +103,9 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None, help="ذخیرهٔ پیش‌بینی‌ها (JSONL) برای تحلیل خطا")
     # قیمت به ازای ۱M توکن (نرخِ استانداردِ deepseek-chat؛ نرخِ روز را بررسی کن)
-    ap.add_argument("--price-in", type=float, default=0.27, help="input cache-miss $/1M")
-    ap.add_argument("--price-cache", type=float, default=0.07, help="input cache-hit $/1M")
-    ap.add_argument("--price-out", type=float, default=1.10, help="output $/1M")
+    ap.add_argument("--price-in", type=float, default=0.14, help="input cache-miss $/1M")
+    ap.add_argument("--price-cache", type=float, default=0.0028, help="input cache-hit $/1M")
+    ap.add_argument("--price-out", type=float, default=0.28, help="output $/1M")
     args = ap.parse_args()
 
     clf = Classifier()
