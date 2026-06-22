@@ -39,7 +39,7 @@ os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://o
 os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "openai/gpt-oss-120b:free")
 
 # ★ لوگوی شرکت: مسیرِ فایل (مثلاً "assets/logo.png") یا URL. خالی = نشانِ پیش‌فرض.
-LOGO_SRC = os.environ.get("LOGO_SRC", "")
+LOGO_SRC = "data/logo.png"
 
 try:
     PROJECT = os.path.dirname(os.path.abspath(__file__))
