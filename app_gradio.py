@@ -39,7 +39,7 @@ except Exception:
 os.environ["DEEPSEEK_API_KEY"] = _KEY
 os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://openrouter.ai/api/v1")
 # ★ مدل را اینجا عوض کن (مثلاً "deepseek/deepseek-chat-v3-0324" یا "openai/gpt-oss-120b:free")
-os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "deepseek/deepseek-chat-v3-0324")
+os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "openai/gpt-oss-120b:free")
 
 # مسیر پروژه = محلِ همین فایل (با fallback برای اجرای paste-شده در سلول)
 try:
