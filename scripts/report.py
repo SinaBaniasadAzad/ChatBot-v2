@@ -117,8 +117,15 @@ def _draw_recall(ax, res: dict) -> None:
 
     # افسانهٔ لایه‌ها
     handles = [plt.Rectangle((0, 0), 1, 1, color=_LAYER_COLORS[i % len(_LAYER_COLORS)]) for i in range(len(res["layers"]))]
-    ax.legend(handles, [f"{L['name']} (layer {L['id']})" for L in res["layers"]],
-              loc="lower right", frameon=False, fontsize=9.5)
+    ax.legend(
+    handles,
+    [f"{L['name']} (layer {L['id']})" for L in res["layers"]],
+    loc="upper left",
+    bbox_to_anchor=(1.02, 1.0),
+    borderaxespad=0,
+    frameon=False,
+    fontsize=9.5
+)
 
 
 def _draw_confusion(ax, L: dict) -> None:
