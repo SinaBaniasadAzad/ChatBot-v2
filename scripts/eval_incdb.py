@@ -1,35 +1,33 @@
 """
-ارزیابی دقت روی فایل خام تیکت‌ها (فرمت INC_DB.jsonl).
+Accuracy evaluation on the raw ticket file (INC_DB.jsonl format).
 
-هر خط:
+Each line:
   {"Key": "INC-20689", "Application": "ERP", "Summary": "...", "Description": "...",
    "Labels": {"layer_1": "Incident", "layer_2": "ERP"}}
 
-- ground truth = Labels.layer_1 / layer_2 (نام نمایشی مثل "Incident"/"ERP").
-  این اسکریپت نام‌ها را خودکار به id داخلی نگاشت می‌کند و کلیدِ "layer_1" را با
-  "layer1"ِ taxonomy تطبیق می‌دهد (حذفِ underscore).
-- مدل به‌صورت single-shot اجرا می‌شود (بدون شبیه‌سازیِ سوال تکمیلی) و بهترین حدسِ
-  هر لایه گرفته می‌شود — یعنی «دقتِ خامِ مدل».
-- گزارش:
-    • دقتِ هر لایه
-    • recall هر کلاس  (از Incidentها چند درصد درست؟ از ERP/Staff چند درصد؟)
-    • دقتِ کلی = تطبیقِ کاملِ همهٔ لایه‌ها
-    • confusion matrix هر لایه
-    • توکن و هزینهٔ واقعی (از usageِ DeepSeek، شاملِ cache hit/miss)
+- ground truth = Labels.layer_1 / layer_2 (display names like "Incident"/"ERP").
+  Names are auto-mapped to internal ids and "layer_1" is matched to taxonomy "layer1"
+  (underscores removed).
+- The model runs single-shot (no clarifying questions) = "raw model accuracy".
 
-اجرا (از ریشهٔ پروژه):
-    python -m scripts.eval_incdb data/INC_DB.jsonl
-    python -m scripts.eval_incdb data/INC_DB.jsonl --limit 300
-    python -m scripts.eval_incdb data/INC_DB.jsonl --balanced 75     # حداکثر ۷۵ از هر ترکیب
-    python -m scripts.eval_incdb data/INC_DB.jsonl --workers 6 --out preds.jsonl
+This module exposes:
+  • run_evaluation(...) -> dict     metric computation (for text + dashboard)
+  • main()                          CLI text report
 
-قیمت‌ها (به ازای ۱M توکن) با فلگ قابل تنظیم‌اند؛ پیش‌فرض = نرخِ استانداردِ
-deepseek-chat (V3). قبل از استناد، نرخِ روز را از platform.deepseek.com بررسی کن.
+Sampling options:
+  --balanced N   at most N tickets per (layer1,layer2) combo
+  --frac F       fraction F (e.g. 0.2 = 20%) sampled from EACH combo (stratified, seeded)
+
+Professional visual dashboard: scripts/report.py
+
+Run (from project root):
+    python -m scripts.eval_incdb data/INC_DB.jsonl --frac 0.2 --workers 6
 """
 from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 import time
 from collections import defaultdict
@@ -39,15 +37,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifier.classifier import Classifier  # noqa: E402
+from src.classifier.decision import _is_ambiguous  # noqa: E402
 
 
 def _norm_key(k: str) -> str:
-    """«layer_1» / «Layer 1» -> «layer1» (فقط حروف و عدد)."""
+    """"layer_1" / "Layer 1" -> "layer1" (alphanumerics only)."""
     return "".join(ch for ch in str(k).lower() if ch.isalnum())
 
 
+def _cap(name: str) -> str:
+    """Short English display name: "Type / نوع" -> "Type"."""
+    return name.split("/")[0].strip() if "/" in name else name.strip()
+
+
 def _build_maps(tax):
-    """نگاشت‌های نام->id برای لایه‌ها و برچسب‌ها (تحملِ نام نمایشی یا id)."""
+    """name->id maps for layers and labels (accepts display name or id)."""
     layer_key_map: dict[str, str] = {}
     label_map: dict[str, dict[str, str]] = {}
     for layer in tax.layers:
@@ -60,30 +64,47 @@ def _build_maps(tax):
     return layer_key_map, label_map
 
 
-def load_rows(path: Path, limit: int | None, balanced: int | None, tax) -> list[dict]:
+def _gt_label(row: dict, layer, label_map) -> str | None:
+    """Gold label id of this layer from Labels (or None if missing/unmapped)."""
+    labels = row.get("Labels") or {}
+    for gk, gv in labels.items():
+        if _norm_key(gk) == _norm_key(layer.id):
+            return label_map[layer.id].get(str(gv).strip().lower())
+    return None
+
+
+def _combo(row: dict, tax, label_map) -> tuple:
+    return tuple(_gt_label(row, layer, label_map) for layer in tax.layers)
+
+
+def load_rows(
+    path: Path,
+    limit: int | None,
+    balanced: int | None,
+    tax,
+    frac: float | None = None,
+    seed: int = 42,
+) -> list[dict]:
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line:
             rows.append(json.loads(line))
 
-    if balanced:
-        # حداکثر N نمونه از هر ترکیبِ (layer1, layer2) تا کلاس‌های نادر هم پوشش بگیرند.
-        layer_key_map, label_map = _build_maps(tax)
+    if balanced or frac:
+        # Group by (layer1,layer2) combo, then sample per combo.
+        _, label_map = _build_maps(tax)
         buckets: dict[tuple, list[dict]] = defaultdict(list)
         for r in rows:
-            labels = r.get("Labels") or {}
-            combo = []
-            for layer in tax.layers:
-                val = None
-                for gk, gv in labels.items():
-                    if _norm_key(gk) == _norm_key(layer.id):
-                        val = label_map[layer.id].get(str(gv).strip().lower())
-                combo.append(val)
-            buckets[tuple(combo)].append(r)
+            buckets[_combo(r, tax, label_map)].append(r)
+        rng = random.Random(seed)
         rows = []
         for items in buckets.values():
-            rows.extend(items[:balanced])
+            if frac:  # fraction (e.g. 20%) of EACH combo, random but reproducible
+                k = max(1, round(len(items) * frac))
+                rows.extend(rng.sample(items, min(k, len(items))))
+            else:     # at most N per combo
+                rows.extend(items[:balanced])
 
     return rows[:limit] if limit else rows
 
@@ -95,158 +116,252 @@ def _field(row: dict, *names: str) -> str:
     return ""
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("data_path", type=Path)
-    ap.add_argument("--limit", type=int, default=None)
-    ap.add_argument("--balanced", type=int, default=None, help="حداکثر N نمونه از هر ترکیب برچسب")
-    ap.add_argument("--workers", type=int, default=4)
-    ap.add_argument("--out", type=Path, default=None, help="ذخیرهٔ پیش‌بینی‌ها (JSONL) برای تحلیل خطا")
-    # قیمت به ازای ۱M توکن (نرخِ استانداردِ deepseek-chat؛ نرخِ روز را بررسی کن)
-    ap.add_argument("--price-in", type=float, default=0.14, help="input cache-miss $/1M")
-    ap.add_argument("--price-cache", type=float, default=0.0028, help="input cache-hit $/1M")
-    ap.add_argument("--price-out", type=float, default=0.28, help="output $/1M")
-    args = ap.parse_args()
+def compute_cost(tokens: dict, price_in: float, price_cache: float, price_out: float) -> float:
+    """Dollar cost from token counts (prices per 1M tokens)."""
+    return (
+        tokens.get("cache_hit", 0) * price_cache
+        + tokens.get("cache_miss", 0) * price_in
+        + tokens.get("completion", 0) * price_out
+    ) / 1_000_000
 
+
+def run_evaluation(
+    data_path,
+    *,
+    limit: int | None = None,
+    balanced: int | None = None,
+    frac: float | None = None,
+    seed: int = 42,
+    workers: int = 4,
+    out_path=None,
+    errors_out=None,
+    progress: bool = True,
+) -> dict:
+    """Run the model over the tickets and return metrics (no display)."""
     clf = Classifier()
     tax = clf.taxonomy
-    layer_key_map, label_map = _build_maps(tax)
-    rows = load_rows(args.data_path, args.limit, args.balanced, tax)
+    _, label_map = _build_maps(tax)
+    rows = load_rows(Path(data_path), limit, balanced, tax, frac=frac, seed=seed)
     total = len(rows)
-    print(f"بارگذاری {total} تیکت از {args.data_path}", file=sys.stderr)
+
+    if progress:
+        print(f"Loaded {total} tickets from {data_path}", file=sys.stderr)
+        dist: dict[tuple, int] = defaultdict(int)
+        for r in rows:
+            dist[_combo(r, tax, label_map)] += 1
+        for combo, n in sorted(dist.items(), key=lambda x: str(x[0])):
+            names = " + ".join(
+                (tax.get_layer(L.id).get_label(cid).name if cid and tax.get_layer(L.id).get_label(cid) else str(cid))
+                for L, cid in zip(tax.layers, combo)
+            )
+            print(f"  {names}: {n}", file=sys.stderr)
 
     per_layer_total: dict[str, int] = defaultdict(int)
     per_layer_correct: dict[str, int] = defaultdict(int)
     cls_total = {l.id: defaultdict(int) for l in tax.layers}
     cls_correct = {l.id: defaultdict(int) for l in tax.layers}
     confusion = {l.id: defaultdict(lambda: defaultdict(int)) for l in tax.layers}
-    full_total = 0
-    full_correct = 0
-    errors = 0
-    tok = defaultdict(int)  # prompt / cache_hit / cache_miss / completion
-    t_start = time.perf_counter()
-    out_fh = args.out.open("w", encoding="utf-8") if args.out else None
+    full_total = full_correct = errors = 0
+    conf = {"confident_total": 0, "confident_correct": 0, "flagged_total": 0, "flagged_correct": 0}
+    tok: dict[str, int] = defaultdict(int)
+    model_served = None
+    t0 = time.perf_counter()
+    out_fh = Path(out_path).open("w", encoding="utf-8") if out_path else None
+    err_fh = Path(errors_out).open("w", encoding="utf-8") if errors_out else None
+    n_wrong = 0
 
     def run_one(row: dict):
-        summary = _field(row, "Summary", "summary")
-        description = _field(row, "Description", "description")
         try:
-            out, meta = clf.classify(summary, description)
+            out, meta = clf.classify(_field(row, "Summary", "summary"), _field(row, "Description", "description"))
             return row, out, meta, None
-        except Exception as e:  # شکستِ کاملِ یک تیکت نباید کلِ اجرا را بکُشد
+        except Exception as e:  # one failing ticket must not kill the whole run
             return row, None, {}, str(e)
 
     done = 0
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         for row, out, meta, err in pool.map(run_one, rows):
             done += 1
             if err:
                 errors += 1
+            if meta.get("model"):
+                model_served = meta["model"]
 
-            # توکن/هزینه
             u = meta.get("usage") or {}
-            pt = u.get("prompt_tokens", 0) or 0
-            ct = u.get("completion_tokens", 0) or 0
-            hit = u.get("prompt_cache_hit_tokens")
-            miss = u.get("prompt_cache_miss_tokens")
-            if hit is None or miss is None:  # اگر تفکیکِ کش نبود، همه را miss فرض کن
+            pt, ct = u.get("prompt_tokens", 0) or 0, u.get("completion_tokens", 0) or 0
+            hit, miss = u.get("prompt_cache_hit_tokens"), u.get("prompt_cache_miss_tokens")
+            if hit is None or miss is None:
                 hit, miss = 0, pt
             tok["prompt"] += pt
             tok["cache_hit"] += hit
             tok["cache_miss"] += miss
             tok["completion"] += ct
 
-            labels = row.get("Labels") or {}
             row_all_ok = True
             row_has_all = True
-            rec = {"Key": row.get("Key"), "pred": {}, "true": {}}
-
+            rec = {"Key": row.get("Key"), "true": {}, "pred": {}}
             for layer in tax.layers:
-                # ground truth این لایه
-                true_id = None
-                for gk, gv in labels.items():
-                    if _norm_key(gk) == _norm_key(layer.id):
-                        true_id = label_map[layer.id].get(str(gv).strip().lower())
+                true_id = _gt_label(row, layer, label_map)
                 if true_id is None:
                     row_has_all = False
                     continue
-
                 lo = out.layers.get(layer.id) if out else None
                 pred_id = lo.top.label if (lo and lo.top) else None
-
                 per_layer_total[layer.id] += 1
                 cls_total[layer.id][true_id] += 1
                 confusion[layer.id][true_id][pred_id] += 1
-                ok = pred_id == true_id
-                if ok:
+                if pred_id == true_id:
                     per_layer_correct[layer.id] += 1
                     cls_correct[layer.id][true_id] += 1
                 else:
                     row_all_ok = False
                 rec["true"][layer.id] = true_id
                 rec["pred"][layer.id] = pred_id
-
             if row_has_all:
                 full_total += 1
                 full_correct += int(row_all_ok)
+                # Was the model "confident"? (no ambiguous layer -> auto-classifiable)
+                flagged = True
+                if out is not None:
+                    flagged = any(
+                        out.layers.get(L.id) is None or _is_ambiguous(out.layers.get(L.id))
+                        for L in tax.layers
+                    )
+                bucket = "flagged" if flagged else "confident"
+                conf[bucket + "_total"] += 1
+                conf[bucket + "_correct"] += int(row_all_ok)
             if out_fh:
                 rec["correct"] = row_all_ok and row_has_all
                 out_fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            if done % 25 == 0:
+
+            # Error log: only tickets with at least one wrong layer, with their text.
+            wrong_layers = [lid for lid in rec["true"] if rec["pred"].get(lid) != rec["true"][lid]]
+            if err_fh and wrong_layers:
+                n_wrong += 1
+                err_fh.write(
+                    json.dumps(
+                        {
+                            "Key": row.get("Key"),
+                            "wrong": wrong_layers,
+                            "Summary": _field(row, "Summary", "summary"),
+                            "Description": _field(row, "Description", "description"),
+                            **{lid: {"true": rec["true"][lid], "pred": rec["pred"].get(lid)} for lid in rec["true"]},
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+            if progress and done % 25 == 0:
                 print(f"... {done}/{total}", file=sys.stderr)
 
     if out_fh:
         out_fh.close()
-    wall = time.perf_counter() - t_start
+    if err_fh:
+        err_fh.close()
+        if progress:
+            print(f"Wrote {n_wrong} misclassified tickets to {errors_out}", file=sys.stderr)
+    wall = time.perf_counter() - t0
 
-    def name(lid, cid):
-        lbl = tax.get_layer(lid).get_label(cid)
-        return lbl.name if lbl else str(cid)
-
-    M = 1_000_000
-    cost = (
-        tok["cache_hit"] * args.price_cache
-        + tok["cache_miss"] * args.price_in
-        + tok["completion"] * args.price_out
-    ) / M
-
-    print("\n================= نتایج ارزیابی (single-shot) =================")
-    print(f"تیکت‌های ارزیابی‌شده: {total}   |   خطای فراخوانی: {errors}")
-    print(
-        f"توکن‌ها → prompt={tok['prompt']:,} "
-        f"(cache_hit={tok['cache_hit']:,} / miss={tok['cache_miss']:,})  "
-        f"completion={tok['completion']:,}"
-    )
-    print(f"هزینهٔ تخمینی: ${cost:.4f}   (نرخ/1M: in=${args.price_in}, hit=${args.price_cache}, out=${args.price_out} — نرخِ روز را بررسی کن)")
-    if total:
-        print(f"زمان کل: {wall:.0f}s   |   میانگین: {wall*1000/total:.0f} ms/تیکت")
-
-    print("\n— دقتِ هر لایه —")
+    layers_out = []
     for layer in tax.layers:
-        tot = per_layer_total[layer.id]
-        acc = per_layer_correct[layer.id] / tot if tot else 0
-        print(f"  {layer.id} ({layer.name.split('/')[0].strip()}): {acc:.1%}  ({per_layer_correct[layer.id]}/{tot})")
-
-    print("\n— recall هر کلاس (از کلاسِ واقعی، چند درصد درست تشخیص داده شد) —")
-    for layer in tax.layers:
-        print(f"  {layer.id}:")
+        lid = layer.id
+        classes = []
         for cid in layer.label_ids:
-            t = cls_total[layer.id].get(cid, 0)
-            c = cls_correct[layer.id].get(cid, 0)
-            r = c / t if t else 0
-            print(f"    {name(layer.id, cid):<18} {r:6.1%}  ({c}/{t})")
+            t = cls_total[lid].get(cid, 0)
+            c = cls_correct[lid].get(cid, 0)
+            lbl = layer.get_label(cid)
+            classes.append(
+                {"id": cid, "name": lbl.name if lbl else cid, "recall": (c / t if t else 0.0), "correct": c, "total": t}
+            )
+        tot = per_layer_total[lid]
+        layers_out.append(
+            {
+                "id": lid,
+                "name": _cap(layer.name),
+                "accuracy": (per_layer_correct[lid] / tot if tot else 0.0),
+                "correct": per_layer_correct[lid],
+                "total": tot,
+                "label_ids": list(layer.label_ids),
+                "classes": classes,
+                "confusion": {t: dict(confusion[lid][t]) for t in confusion[lid]},
+            }
+        )
 
-    if full_total:
-        print(f"\n— دقتِ کلی (همهٔ لایه‌ها هم‌زمان درست) —\n  {full_correct/full_total:.1%}  ({full_correct}/{full_total})")
+    return {
+        "n": total,
+        "errors": errors,
+        "model": model_served,
+        "layers": layers_out,
+        "overall": {
+            "accuracy": (full_correct / full_total if full_total else 0.0),
+            "correct": full_correct,
+            "total": full_total,
+        },
+        "tokens": dict(tok),
+        "confidence": conf,
+        "wall_s": wall,
+        "latency_ms_avg": (wall * 1000 / total if total else 0.0),
+    }
 
-    for layer in tax.layers:
-        ids = layer.label_ids
-        print(f"\n— Confusion «{layer.id}» (سطر=واقعی، ستون=پیش‌بینی؛ ⌀=بدون پیش‌بینی) —")
-        print("true\\pred".ljust(18) + "".join(name(layer.id, p)[:16].ljust(18) for p in ids) + "⌀".ljust(6))
-        for t in ids:
-            none_n = confusion[layer.id][t].get(None, 0)
-            row = name(layer.id, t).ljust(18) + "".join(str(confusion[layer.id][t].get(p, 0)).ljust(18) for p in ids)
-            print(row + str(none_n).ljust(6))
+
+def print_text_report(res: dict, price_in: float, price_cache: float, price_out: float) -> None:
+    cost = compute_cost(res["tokens"], price_in, price_cache, price_out)
+    t = res["tokens"]
+    print("\n================= Evaluation results (single-shot) =================")
+    print(f"Model: {res.get('model')}   |   Tickets: {res['n']}   |   Call errors: {res['errors']}")
+    print(f"Tokens -> prompt={t.get('prompt',0):,} (hit={t.get('cache_hit',0):,}/miss={t.get('cache_miss',0):,})  completion={t.get('completion',0):,}")
+    print(f"Estimated cost: ${cost:.4f}  (price/1M: in=${price_in}, hit=${price_cache}, out=${price_out} - verify current pricing)")
+    print(f"Total time: {res['wall_s']:.0f}s  |  Avg: {res['latency_ms_avg']:.0f} ms/ticket")
+
+    print("\n-- Per-layer accuracy --")
+    for L in res["layers"]:
+        print(f"  {L['id']} ({L['name']}): {L['accuracy']:.1%}  ({L['correct']}/{L['total']})")
+    print(f"\n-- Overall accuracy (both layers correct) --\n  {res['overall']['accuracy']:.1%}  ({res['overall']['correct']}/{res['overall']['total']})")
+
+    c = res.get("confidence", {})
+    ct, cc = c.get("confident_total", 0), c.get("confident_correct", 0)
+    ft, fc = c.get("flagged_total", 0), c.get("flagged_correct", 0)
+    tot = ct + ft
+    if tot:
+        print("\n-- Accuracy by confidence (deployment strategy) --")
+        print(f"  Confident / auto:   coverage {ct/tot:.0%} ({ct})  |  accuracy {cc/ct:.1%}" if ct else "  Confident: 0")
+        print(f"  Needs review / ask: {ft/tot:.0%} ({ft})  |  accuracy {fc/ft:.1%}" if ft else "  Needs review: 0")
+
+    print("\n-- Per-class recall --")
+    for L in res["layers"]:
+        print(f"  {L['id']}:")
+        for c in L["classes"]:
+            print(f"    {c['name']:<18} {c['recall']:6.1%}  ({c['correct']}/{c['total']})")
+
+    for L in res["layers"]:
+        ids = L["label_ids"]
+        name = {c["id"]: c["name"] for c in L["classes"]}
+        print(f"\n-- Confusion '{L['id']}' (row=true, col=pred; none=no prediction) --")
+        print("true\\pred".ljust(18) + "".join(name[p][:16].ljust(18) for p in ids) + "none")
+        for tr in ids:
+            cells = L["confusion"].get(tr, {})
+            print(name[tr].ljust(18) + "".join(str(cells.get(p, 0)).ljust(18) for p in ids) + str(cells.get(None, 0)))
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("data_path", type=Path)
+    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--balanced", type=int, default=None, help="at most N tickets per label combo")
+    ap.add_argument("--frac", type=float, default=None, help="fraction per combo, e.g. 0.2 = 20%%")
+    ap.add_argument("--seed", type=int, default=42, help="random seed for --frac sampling")
+    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--out", type=Path, default=None, help="save all predictions (JSONL)")
+    ap.add_argument("--errors", type=Path, default=None, help="save only misclassified tickets + text (JSONL)")
+    ap.add_argument("--price-in", type=float, default=0.14)
+    ap.add_argument("--price-cache", type=float, default=0.0028)
+    ap.add_argument("--price-out", type=float, default=0.28)
+    args = ap.parse_args()
+
+    res = run_evaluation(
+        args.data_path, limit=args.limit, balanced=args.balanced, frac=args.frac, seed=args.seed,
+        workers=args.workers, out_path=args.out, errors_out=args.errors,
+    )
+    print_text_report(res, args.price_in, args.price_cache, args.price_out)
 
 
 if __name__ == "__main__":
