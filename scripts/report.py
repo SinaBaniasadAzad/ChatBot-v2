@@ -198,7 +198,7 @@ def evaluate_and_report(
     errors_out=None,
     save_path=None,
     dataset_name=None,
-    prices=(0.27, 0.07, 1.10),
+    prices=(0.14, 0.0028, 0.28),
     show=True,
 ):
     """اجرا + رندرِ داشبورد. خروجی: (res, fig)."""
