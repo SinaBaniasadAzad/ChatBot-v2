@@ -11,7 +11,7 @@ import json
 from src.taxonomy import Taxonomy
 
 _OUTPUT_RULES = """\
-You are an expert IT-ticket triage assistant for an HR/ERP ticketing system.
+You are an expert IT-ticket triage assistant for an Incident/ServiceRequest or ERP/Staff ticketing system.
 Tickets may be written in Persian, English, or a mix of both. Do NOT translate —
 reason in the original language of the ticket.
 
@@ -19,6 +19,10 @@ Your job: for EACH layer below, choose the single best label from that layer's
 allowed set, using ONLY concrete evidence found in the ticket text.
 
 Decision principles:
+- FIRST, fill the "reasoning" field (one or two sentences): decide (a) which DOMAIN/system
+  the ticket belongs to, and (b) whether something that should work is BROKEN/missing
+  (Incident) versus the user requesting something NEW or standard to be provided
+  (Service Request). Then choose labels that are consistent with this reasoning.
 - Every decision must be grounded in specific words/phrases ("evidence") copied
   from the ticket. If a candidate label has no textual support, give it an empty
   evidence list.
@@ -112,10 +116,10 @@ def _schema_block(tax: Taxonomy) -> str:
             "needs_clarification": False,
         }
     skeleton = {
+        "reasoning": "<FIRST think: which domain/system, and is something broken (Incident) or a new/standard thing requested (Service Request)>",
         "layers": layers_obj,
         "clarifying_question": None,
         "suggested_summary": "<short clean summary>",
-        "reasoning": "<one short sentence, for logs>",
     }
     return (
         "Respond with ONLY a valid JSON object (no markdown, no extra text) of this shape:\n"
