@@ -1,16 +1,16 @@
 """
-منطق تصمیم‌گیریِ Ambiguity-Driven.
+Ambiguity-Driven decision logic.
 
-به‌جای تکیه بر «عدد confidence» (که در LLM کالیبره نیست)، ابهام را بر پایهٔ
-*شواهد عینی* تشخیص می‌دهیم:
-  یک لایه مبهم است اگر:
-    - مدل خودش needs_clarification=true داده باشد، یا
-    - کاندیدای برترش هیچ شاهد متنی‌ای نداشته باشد (گارد ضدِ بیش‌اعتمادی).
+Instead of relying on a "confidence score" (which is uncalibrated in LLMs),
+we detect ambiguity from *concrete evidence*:
+  A layer is ambiguous if:
+    - the model itself set needs_clarification=true, or
+    - its top candidate has no textual evidence (an anti-overconfidence guard).
 
-تصمیم نهایی، با در نظر گرفتن بودجهٔ سوال:
-  - هیچ لایهٔ مبهمی نیست            -> DONE
-  - لایهٔ مبهم هست و بودجه باقی است -> ASK (یک سوال هدفمند)
-  - لایهٔ مبهم هست و بودجه تمام شد  -> FALLBACK (بهترین حدس + flag بازبینی)
+The final decision, given the question budget:
+  - no ambiguous layer                  -> DONE
+  - an ambiguous layer, budget remains  -> ASK (one targeted question)
+  - an ambiguous layer, budget exhausted -> FALLBACK (best guess + review flag)
 """
 from __future__ import annotations
 
@@ -54,13 +54,13 @@ def _is_ambiguous(lo: LayerOutput) -> bool:
     top = lo.top
     if top is None:
         return True
-    if not top.evidence:  # هیچ شاهد عینی -> اطلاعات احتمالاً کم است
+    if not top.evidence:  # no concrete evidence -> information is probably missing
         return True
     return lo.needs_clarification
 
 
 def _fallback_question(tax: Taxonomy, ambiguous_layer_ids: list[str]) -> str:
-    """اگر مدل سوالی نساخت، یک سوال عمومیِ هدفمند می‌سازیم."""
+    """If the model produced no question, build a generic targeted one (Persian, to match ticket language)."""
     names = []
     for lid in ambiguous_layer_ids:
         layer = tax.get_layer(lid)
@@ -100,5 +100,5 @@ def decide(
         question = output.clarifying_question or _fallback_question(tax, ambiguous_ids)
         return Decision(Action.ASK, layer_decisions, question=question)
 
-    # بودجهٔ سوال تمام شد: بهترین حدس + علامت بازبینی انسانی.
+    # Question budget exhausted: best guess + human-review flag.
     return Decision(Action.FALLBACK, layer_decisions)

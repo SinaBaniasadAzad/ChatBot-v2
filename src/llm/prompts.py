@@ -1,8 +1,9 @@
 """
-ساخت System/User prompt از روی taxonomy + few-shot.
+Build the System/User prompts from the taxonomy + few-shot examples.
 
-نکتهٔ کلیدی: همه‌چیز به‌صورت پویا از taxonomy ساخته می‌شود؛ هیچ نام دسته‌ای
-در این فایل hard-code نشده. افزودن لایه/دسته در YAML خودکار به prompt می‌آید.
+Key point: everything is generated dynamically from the taxonomy; no label
+name is hard-coded in this file. Adding a layer/label in the YAML flows into
+the prompt automatically.
 """
 from __future__ import annotations
 
@@ -58,7 +59,7 @@ def _layers_block(tax: Taxonomy) -> str:
 
 
 def _label_name(tax: Taxonomy, label_id: str) -> str:
-    """نام نمایشیِ یک برچسب را در هر لایه‌ای که باشد پیدا می‌کند."""
+    """Find a label's display name in whichever layer it lives in."""
     for layer in tax.layers:
         lbl = layer.get_label(label_id)
         if lbl:
@@ -75,7 +76,7 @@ def _fmt_kw(item) -> str:
 
 
 def build_signals_block(tax: Taxonomy) -> str:
-    """نقشهٔ کلیدواژه‌های متخصص: هر کلیدواژه هم‌زمان حوزه و نوع را تعیین می‌کند."""
+    """Expert keyword map: each keyword determines both Domain and Type at once."""
     sig = getattr(tax, "signals", None) or {}
     if not sig:
         return ""
@@ -103,7 +104,7 @@ def build_signals_block(tax: Taxonomy) -> str:
 
 
 def _schema_block(tax: Taxonomy) -> str:
-    """نمونهٔ خروجی JSON با کلیدهای لایه‌ها و فهرست برچسب‌های مجاز هر لایه."""
+    """Example JSON output with the layer keys and each layer's allowed labels."""
     layers_obj = {}
     allowed_note = []
     for layer in tax.layers:

@@ -1,7 +1,8 @@
 """
-هستهٔ دسته‌بندی: یک «دور» کامل (یک تیکت -> یک ClassificationOutput).
+Classification core: one full "round" (a single ticket -> one ClassificationOutput).
 
-این کلاس از وضعیت مکالمه و سقف سوال‌ها چیزی نمی‌داند؛ آن منطق در conversation/manager است.
+This class knows nothing about conversation state or the question budget;
+that logic lives in conversation/manager.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ class Classifier:
     ) -> None:
         self.taxonomy = taxonomy or load_taxonomy()
         self.client = client or DeepSeekClient()
-        # per_combo=5 → مثال‌های متضادِ متوازن برای هر ترکیب (system prompt کش می‌شود).
+        # per_combo=5 → balanced contrasting examples per combo (the system prompt is cached).
         self.demonstrations = build_demonstrations(self.taxonomy, per_combo=5)
         self._system = build_system_prompt(self.taxonomy, self.demonstrations)
 
@@ -35,17 +36,17 @@ class Classifier:
         description: str,
         clarifications: list[tuple[str, str]] | None = None,
     ) -> tuple[ClassificationOutput, dict]:
-        """خروجی: (نتیجهٔ دسته‌بندی، متادیتای LLM برای لاگ)."""
+        """Returns: (classification result, LLM metadata for logging)."""
         user = build_user_prompt(summary, description, clarifications)
 
-        # مسیر عادی: یک فراخوانی.
+        # Normal path: a single call.
         if not settings.enable_self_consistency:
             resp = self.client.complete_json(self._system, user)
             output = parse_and_validate(resp.data, self.taxonomy)
             meta = {"model": resp.model, "latency_ms": round(resp.latency_ms, 1), "usage": resp.usage}
             return output, meta
 
-        # مسیر اختیاری: self-consistency برای سنجش پایداری.
+        # Optional path: self-consistency to gauge stability.
         resp, agreement = self.client.majority_vote(
             self._system,
             user,
@@ -53,9 +54,9 @@ class Classifier:
             n=settings.self_consistency_samples,
         )
         output = parse_and_validate(resp.data, self.taxonomy)
-        # اگر توافق پایین بود، همهٔ لایه‌ها را به‌عنوان مبهم علامت بزن.
+        # If agreement was low, mark every layer as ambiguous.
         if agreement < 0.6:
-            log.info("توافق self-consistency پایین بود (%.0f%%) -> ابهام.", agreement * 100)
+            log.info("Self-consistency agreement was low (%.0f%%) -> ambiguous.", agreement * 100)
             for lo in output.layers.values():
                 lo.needs_clarification = True
         meta = {

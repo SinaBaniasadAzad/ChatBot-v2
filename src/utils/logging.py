@@ -1,4 +1,4 @@
-"""لاگ ساختاریافتهٔ ساده (JSON-friendly). در تولید می‌توان به فایل/سرویس هدایت کرد."""
+"""Simple structured logging (JSON-friendly). In production it can be routed to a file/service."""
 from __future__ import annotations
 
 import logging

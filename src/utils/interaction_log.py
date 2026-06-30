@@ -1,13 +1,14 @@
 """
-ثبت ماندگارِ تعاملات به فرمت JSONL (هر خط یک رویداد).
+Persist interactions in JSONL format (one event per line).
 
-چرا JSONL؟ append-only، مقاوم، و تحلیلش با pandas/jq ساده است.
-چه چیزی ذخیره می‌شود؟ تیکت، سوال‌های تکمیلی + پاسخ کاربر، خروجی خام مدل (کاندیدا +
-شواهد)، تصمیم نهایی، و متادیتای LLM (مدل، latency، مصرف توکن). این داده‌ها سرمایهٔ
-ساخت Gold Set، تحلیل خطا، و تیون prompt هستند.
+Why JSONL? Append-only, robust, and easy to analyze with pandas/jq.
+What is stored? The ticket, follow-up questions + user answers, the raw model
+output (candidates + evidence), the final decision, and LLM metadata (model,
+latency, token usage). This data is the foundation for building a Gold Set,
+error analysis, and prompt tuning.
 
-نکتهٔ امنیتی: تیکت‌ها حاوی دادهٔ پرسنلی (نام، کد پرسنلی) هستند؛ این لاگ‌ها PII دارند —
-پوشهٔ logs/ در .gitignore است و باید سیاست نگه‌داری/دسترسی برایش تعریف شود.
+Security note: tickets contain personal data (names, employee IDs); these logs
+hold PII — the logs/ folder is in .gitignore and needs a retention/access policy.
 """
 from __future__ import annotations
 
@@ -40,15 +41,15 @@ class InteractionLogger:
         try:
             with self._lock, open(self.path, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
-        except OSError as e:  # لاگ نباید جریان اصلی را بشکند
-            log.warning("نوشتن لاگ تعامل ناموفق بود: %s", e)
+        except OSError as e:  # logging must not break the main flow
+            log.warning("Failed to write interaction log: %s", e)
 
     @staticmethod
     def _clarifications(session) -> list[dict]:
         return [{"q": q, "a": a} for q, a in session.clarifications]
 
     def log_round(self, session, output, decision, meta: dict) -> None:
-        """یک دورِ classify->decide (شامل سوالی که قرار است پرسیده شود)."""
+        """One classify->decide round (including the question about to be asked)."""
         self._write(
             {
                 "ts": _now(),
@@ -73,7 +74,7 @@ class InteractionLogger:
         )
 
     def log_final(self, session) -> None:
-        """رکورد نهاییِ جلسه — مفیدترین آرتیفکت برای تحلیل دقت."""
+        """Final session record — the most useful artifact for accuracy analysis."""
         self._write(
             {
                 "ts": _now(),

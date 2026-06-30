@@ -1,7 +1,8 @@
 """
-مدل‌های دادهٔ Pydantic برای خروجی مدل (فقط «شکل» داده‌ها).
+Pydantic data models for the model output (the data "shape" only).
 
-منطقِ تبدیل/ترمیم/اعتبارسنجیِ خروجی خام LLM در output_parser.py است.
+The logic that converts/repairs/validates the raw LLM output lives in
+output_parser.py.
 """
 from __future__ import annotations
 

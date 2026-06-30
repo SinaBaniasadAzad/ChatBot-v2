@@ -1,12 +1,13 @@
 """
-انتخاب و ساخت مثال‌های few-shot.
+Select and build the few-shot examples.
 
-استراتژی فعلی: «انتخاب ثابتِ متوازن» — برای هر ترکیب از برچسب‌های همهٔ لایه‌ها
-حداکثر K مثال برمی‌داریم تا توزیع طبیعی نامتوازن (۸۰۰ Incident vs ۲۵۰۰ SR) به
-مدل بایاس تزریق نکند.
+Current strategy: "fixed balanced selection" — for each combination of labels
+across all layers we take at most K examples, so the naturally imbalanced
+distribution (800 Incident vs 2500 SR) does not bias the model.
 
-این ماژول یک «درز» (seam) است: امضای build_demonstrations ثابت می‌ماند، اما بعداً
-می‌توان پیاده‌سازی را به انتخاب پویا مبتنی بر embedding عوض کرد، بدون تغییر بقیهٔ کد.
+This module is a seam: the signature of build_demonstrations stays stable, but
+the implementation can later be swapped for dynamic embedding-based selection
+without touching the rest of the code.
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ def _combo_key(example: dict, tax: Taxonomy) -> tuple:
 
 
 def _build_output(example: dict, tax: Taxonomy) -> dict:
-    """خروجی ایده‌آلِ نمایشی را از برچسب طلایی می‌سازد (evidence = cueهای حاضر در متن)."""
+    """Build the ideal demonstration output from the gold label (evidence = cues present in the text)."""
     text = f"{example.get('summary', '')} {example.get('description', '')}"
     layers_obj = {}
     for layer in tax.layers:
@@ -42,7 +43,7 @@ def _build_output(example: dict, tax: Taxonomy) -> dict:
         gold = layer.get_label(gold_id)
         evidence = find_cues(text, gold.cues) if gold else []
         candidates = [{"label": gold_id, "evidence": evidence[:4]}]
-        # یک runner-up با evidence خالی (اولین برچسب دیگر)
+        # one runner-up with empty evidence (the first other label)
         for other in layer.labels:
             if other.id != gold_id:
                 candidates.append({"label": other.id, "evidence": []})
@@ -61,7 +62,7 @@ def build_demonstrations(
     examples: list[dict] | None = None,
     per_combo: int = 3,
 ) -> list[dict]:
-    """فهرستی از {input, output} متوازن بر اساس ترکیب برچسب‌ها."""
+    """A list of {input, output} pairs, balanced by label combination."""
     examples = examples if examples is not None else load_examples()
     buckets: dict[tuple, list[dict]] = defaultdict(list)
     for ex in examples:

@@ -1,16 +1,17 @@
 """
-سنجش دقت روی یک Gold Set برچسب‌خوردهٔ تأییدشده.
+Accuracy evaluation against a verified, labeled Gold Set.
 
-ورودی: یک فایل JSONL با همان ساختار data/examples.jsonl (summary, description,
-و برچسب طلایی هر لایه: layer1, layer2, ...).
+Input: a JSONL file with the same structure as data/examples.jsonl (summary,
+description, and the gold label for each layer: layer1, layer2, ...).
 
-اجرا:
+Run:
     python -m scripts.evaluate data/gold.jsonl
     python -m scripts.evaluate data/gold.jsonl --limit 200
 
-خروجی: دقت هر لایه + accuracy کلیِ تطبیق کامل + confusion matrix هر لایه +
-نرخ موارد مبهم (single-shot؛ بدون شبیه‌سازی سوال تکمیلی).
-نکته: روی برچسب‌های خام نویزی (پیشوند Key یا فیلد Application) اجرا نکنید — فقط Gold Set.
+Output: per-layer accuracy + overall full-match accuracy + per-layer confusion
+matrix + ambiguity rate (single-shot; no follow-up question simulation).
+Note: do not run on noisy raw labels (the Key prefix or Application field) —
+use only a Gold Set.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-# اجازهٔ اجرا از ریشهٔ پروژه
+# Allow running from the project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifier.classifier import Classifier  # noqa: E402
@@ -72,16 +73,16 @@ def main() -> None:
         if i % 25 == 0:
             print(f"... {i}/{total}", file=sys.stderr)
 
-    print("\n=========== نتایج ارزیابی ===========")
-    print(f"تعداد نمونه‌ها: {total}\n")
+    print("\n=========== Evaluation results ===========")
+    print(f"Number of samples: {total}\n")
     for layer in tax.layers:
         acc = per_layer_correct[layer.id] / total if total else 0
-        print(f"دقت لایهٔ «{layer.id}»: {acc:.1%}")
-    print(f"\nدقت تطبیق کامل (همهٔ لایه‌ها): {full_match / total:.1%}" if total else "")
-    print(f"نرخ موارد مبهم (single-shot): {ambiguous_count / total:.1%}" if total else "")
+        print(f"Accuracy of layer '{layer.id}': {acc:.1%}")
+    print(f"\nFull-match accuracy (all layers): {full_match / total:.1%}" if total else "")
+    print(f"Ambiguity rate (single-shot): {ambiguous_count / total:.1%}" if total else "")
 
     for layer in tax.layers:
-        print(f"\n--- Confusion matrix لایهٔ «{layer.id}» (سطر=واقعی، ستون=پیش‌بینی) ---")
+        print(f"\n--- Confusion matrix for layer '{layer.id}' (row=true, col=pred) ---")
         labels = layer.label_ids
         header = "true\\pred".ljust(18) + "".join(l.ljust(18) for l in labels)
         print(header)

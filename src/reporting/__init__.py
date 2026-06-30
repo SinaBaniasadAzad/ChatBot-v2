@@ -1,8 +1,9 @@
-"""گزارش‌گیریِ هزینه و توکن (ارائه‌محور).
+"""Cost and token reporting (presentation-oriented).
 
-این پکیج منطقِ مشترکِ محاسبهٔ هزینه/توکن را نگه می‌دارد تا هر دو خروجی —
-گزارشِ HTML (`scripts/cost_report.py`) و داشبوردِ تصویری (`scripts/report.py`) —
-از یک منبعِ واحد عدد بگیرند و هیچ‌وقت با هم اختلاف نداشته باشند.
+This package holds the shared cost/token computation logic so that both
+outputs — the HTML report (`scripts/cost_report.py`) and the visual dashboard
+(`scripts/report.py`) — draw their numbers from a single source and never
+disagree.
 """
 from src.reporting.cost import (
     CostBreakdown,

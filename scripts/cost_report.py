@@ -1,18 +1,19 @@
 """
-گزارشِ HTMLِ هزینه و توکن — تک‌فایلِ مستقل، آمادهٔ ارائه به مدیریت.
+HTML cost & token report — a single standalone file, ready to present to management.
 
-از دادهٔ **واقعی** تغذیه می‌شود (نه ماشین‌حساب فرضی). دو منبع:
-  ۱) لاگِ تولید (بدونِ نیاز به API):
+Fed by **real** data (not a hypothetical calculator). Two sources:
+  1) The production log (no API needed):
         python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
-  ۲) اجرای واقعیِ مدل روی دیتاست (نیازمندِ DEEPSEEK_API_KEY):
+  2) A real model run over the dataset (requires DEEPSEEK_API_KEY):
         python -m scripts.cost_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
             --out cost_report.html
 
-خروجی یک فایلِ HTMLِ خودبسنده است (CSS/SVG امبد، بدونِ وابستگیِ شبکه) که در مرورگر باز
-می‌شود و با Print → Save as PDF به اسلاید/گزارش تبدیل می‌شود.
+The output is a self-contained HTML file (embedded CSS/SVG, no network
+dependency) that opens in a browser and turns into a slide/report via
+Print → Save as PDF.
 
-طراحی: همهٔ اعداد از `src.reporting.cost.CostBreakdown` می‌آیند تا با داشبوردِ تصویری
-(`scripts/report.py`) دقیقاً یکی باشند.
+Design: every number comes from `src.reporting.cost.CostBreakdown` so it
+matches the visual dashboard (`scripts/report.py`) exactly.
 """
 from __future__ import annotations
 
@@ -31,21 +32,21 @@ from src.reporting.cost import (  # noqa: E402
     breakdown_from_eval,
 )
 
-# پالت — هم‌خوان با scripts/report.py
+# Palette — consistent with scripts/report.py
 _INDIGO = "#6366f1"
 _TEAL = "#14b8a6"
 _AMBER = "#f59e0b"
 _GREEN = "#22c55e"
 
-# حجم‌های ماهانهٔ نمونه برای جدولِ برون‌یابی (از هزینهٔ اندازه‌گیری‌شدهٔ هر تیکت).
+# Sample monthly volumes for the projection table (from the measured cost per ticket).
 _PROJECTION_VOLUMES = (1_000, 10_000, 50_000, 100_000)
 
 
 # ---------------------------------------------------------------------------
-# قالب‌بندیِ اعداد
+# Number formatting
 # ---------------------------------------------------------------------------
 def _usd(x: float, decimals: int | None = None) -> str:
-    """دلار با دقتِ تطبیقی (مبالغِ ریز با ارقامِ بیشتر)."""
+    """USD with adaptive precision (tiny amounts get more digits)."""
     if decimals is None:
         a = abs(x)
         if a == 0:
@@ -72,7 +73,7 @@ def _esc(s: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# اجزای بصری (SVG/HTML امبد)
+# Visual components (embedded SVG/HTML)
 # ---------------------------------------------------------------------------
 def _kpi_card(label: str, value: str, sub: str = "", accent: str = _INDIGO, badge: str = "") -> str:
     badge_html = f'<span class="badge" style="--c:{accent}">{_esc(badge)}</span>' if badge else ""
@@ -86,7 +87,7 @@ def _kpi_card(label: str, value: str, sub: str = "", accent: str = _INDIGO, badg
 
 
 def _stacked_bar(segments: list[tuple[str, float, str]]) -> str:
-    """نوارِ افقیِ انباشته. segments = [(label, value, color), ...]."""
+    """A stacked horizontal bar. segments = [(label, value, color), ...]."""
     total = sum(max(v, 0) for _, v, _ in segments) or 1.0
     bars = "".join(
         f'<div class="seg" style="width:{max(v, 0) / total * 100:.4f}%;background:{c}" '
@@ -103,7 +104,7 @@ def _stacked_bar(segments: list[tuple[str, float, str]]) -> str:
 
 
 def _donut(parts: list[tuple[str, float, str]], center_top: str, center_bot: str) -> str:
-    """دوناتِ SVG برای ترکیبِ هزینه. parts = [(label, value, color), ...]."""
+    """An SVG donut for cost composition. parts = [(label, value, color), ...]."""
     total = sum(max(v, 0) for _, v, _ in parts) or 1.0
     r = 52.0
     circ = 2 * 3.141592653589793 * r
@@ -219,13 +220,13 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
 
 
 # ---------------------------------------------------------------------------
-# رندرِ گزارش
+# Report rendering
 # ---------------------------------------------------------------------------
 def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token & Cost Report") -> str:
     p = b.pricing
     model = b.model or "—"
 
-    # --- ردیفِ KPI ---
+    # --- KPI row ---
     savings_badge = f"−{_pct(b.cache_savings_pct, 0)}" if b.cache_savings > 0 else ""
     kpis = "".join(
         [
@@ -238,7 +239,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         ]
     )
 
-    # --- پنلِ ترکیبِ توکن ---
+    # --- Token composition panel ---
     token_bar = _stacked_bar(
         [
             ("Cached input (hit)", b.cache_hit_tokens, _GREEN),
@@ -252,7 +253,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         f"{token_bar}</div>"
     )
 
-    # --- پنلِ ترکیبِ هزینه (دونات) ---
+    # --- Cost composition panel (donut) ---
     cost_donut = _donut(
         [("Input cost", b.cost_input, _AMBER), ("Output cost", b.cost_output, _INDIGO)],
         _usd(b.cost_total),
@@ -264,7 +265,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         f"{cost_donut}</div>"
     )
 
-    # --- جدولِ تفکیکِ هزینه ---
+    # --- Cost breakdown table ---
     cost_rows = [
         ["Cached input", _int(b.cache_hit_tokens), _usd(p.cache_hit_per_m), _usd(b.cost_cache_hit)],
         ["Uncached input", _int(b.cache_miss_tokens), _usd(p.input_per_m), _usd(b.cost_cache_miss)],
@@ -282,7 +283,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         f"{cost_table}</div>"
     )
 
-    # --- پنلِ صرفه‌جوییِ کش ---
+    # --- Cache savings panel ---
     savings_panel = _kpi_card(
         "Saved by prompt caching",
         _usd(b.cache_savings),
@@ -290,7 +291,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         _GREEN,
     ).replace('class="kpi"', 'class="kpi save"')
 
-    # --- اقتصادِ واحد ---
+    # --- Unit economics ---
     unit_rows = [
         ["Cost per ticket", _usd(b.cost_per_ticket)],
         ["Cost per API call", _usd(b.cost_per_call)],
@@ -304,7 +305,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         f"{_table(['Metric', 'Value'], unit_rows, right_from=1)}</div>"
     )
 
-    # --- برون‌یابیِ هزینهٔ ماهانه (از هزینهٔ اندازه‌گیری‌شدهٔ هر تیکت) ---
+    # --- Monthly cost projection (from the measured cost per ticket) ---
     proj_rows = [
         [f"{_int(v)} tickets / mo", _usd(b.project(v)), _usd(b.project(v) * 12)]
         for v in _PROJECTION_VOLUMES
@@ -318,7 +319,7 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
         "(assumes a comparable cache-hit rate).</div></div>"
     )
 
-    # --- پاورقی ---
+    # --- Footer ---
     foot = (
         f"<b>Pricing assumptions</b> (USD per 1M tokens): "
         f"cached input ${p.cache_hit_per_m} · uncached input ${p.input_per_m} · output ${p.output_per_m}. "
@@ -372,14 +373,14 @@ def render_html(b: CostBreakdown, *, dataset_name: str = "", title: str = "Token
 # CLI
 # ---------------------------------------------------------------------------
 def main() -> None:
-    ap = argparse.ArgumentParser(description="گزارشِ HTMLِ هزینه/توکن از دادهٔ واقعی.")
+    ap = argparse.ArgumentParser(description="HTML cost/token report from real data.")
     src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("data_path", nargs="?", help="دیتاستِ خام (JSONL) برای اجرای واقعیِ مدل")
-    src.add_argument("--from-log", metavar="PATH", help="تجمیع از logs/interactions.jsonl (بدون API)")
+    src.add_argument("data_path", nargs="?", help="raw dataset (JSONL) for a real model run")
+    src.add_argument("--from-log", metavar="PATH", help="aggregate from logs/interactions.jsonl (no API)")
 
-    ap.add_argument("--out", default="cost_report.html", help="مسیرِ خروجیِ HTML")
-    ap.add_argument("--frac", type=float, default=None, help="نسبتِ نمونه از هر ترکیب (مثلاً 0.2)")
-    ap.add_argument("--balanced", type=int, default=None, help="حداکثر N تیکت در هر ترکیب")
+    ap.add_argument("--out", default="cost_report.html", help="HTML output path")
+    ap.add_argument("--frac", type=float, default=None, help="sample fraction per combo (e.g. 0.2)")
+    ap.add_argument("--balanced", type=int, default=None, help="at most N tickets per combo")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--workers", type=int, default=4)
@@ -394,7 +395,7 @@ def main() -> None:
         breakdown = aggregate_log(args.from_log, pricing=pricing)
         dataset_name = Path(args.from_log).name
     else:
-        # اجرای واقعیِ مدل (نیازمندِ API key) — importِ تنبل تا مسیرِ لاگ سبک بماند.
+        # Real model run (requires an API key) — lazy import so the log path stays lightweight.
         from scripts.eval_incdb import run_evaluation
 
         res = run_evaluation(

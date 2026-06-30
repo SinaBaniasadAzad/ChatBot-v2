@@ -1,14 +1,15 @@
 """
-CLI تعاملی برای تست دستی هسته (بدون نیاز به API).
+Interactive CLI for manually testing the core (no API required).
 
-اجرا:  python cli.py
-سپس summary و description را وارد کنید؛ اگر چت‌بات سوال تکمیلی داشت، پاسخ دهید.
+Run:  python cli.py
+Then enter a summary and description; if the chatbot asks a follow-up
+question, answer it.
 """
 from __future__ import annotations
 
 import sys
 
-# روی کنسول ویندوز، خروجی/ورودی را UTF-8 کن تا متن فارسی درست نمایش داده شود.
+# On Windows consoles, force UTF-8 I/O so Persian text renders correctly.
 for _stream in (sys.stdout, sys.stdin, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
@@ -20,21 +21,21 @@ from src.conversation.manager import ConversationManager
 
 def _print_result(resp: dict) -> None:
     print("\n" + "=" * 60)
-    print(f"وضعیت: {resp['status']}   |   سوال‌های پرسیده‌شده: {resp['questions_asked']}")
+    print(f"Status: {resp['status']}   |   Questions asked: {resp['questions_asked']}")
     result = resp["result"]
     if result:
-        print("برچسب‌ها:")
+        print("Labels:")
         for layer_id, label in result["labels"].items():
-            ev = "، ".join(result["evidence"].get(layer_id, [])) or "—"
-            print(f"   • {layer_id}: {label}   (شواهد: {ev})")
-        print(f"خلاصهٔ پیشنهادی: {result['suggested_summary']}")
+            ev = ", ".join(result["evidence"].get(layer_id, [])) or "—"
+            print(f"   • {layer_id}: {label}   (evidence: {ev})")
+        print(f"Suggested summary: {result['suggested_summary']}")
         if result["needs_review"]:
-            print("⚠️  اطمینان پایین — نیازمند بازبینی انسانی.")
+            print("⚠️  Low confidence — needs human review.")
     print("=" * 60 + "\n")
 
 
 def main() -> None:
-    print("چت‌بات مسیریابی تیکت — برای خروج Ctrl+C\n")
+    print("Ticket Routing Chatbot — press Ctrl+C to exit\n")
     manager = ConversationManager()
 
     while True:
@@ -46,15 +47,15 @@ def main() -> None:
 
             resp = manager.start(summary, description)
 
-            # حلقهٔ سوال‌های تکمیلی
+            # Follow-up question loop
             while resp["status"] == "need_info":
-                print(f"\n🤖 سوال: {resp['question']}")
-                ans = input("پاسخ شما> ").strip()
+                print(f"\n🤖 Question: {resp['question']}")
+                ans = input("Your answer> ").strip()
                 resp = manager.answer(resp["session_id"], ans)
 
             _print_result(resp)
         except (KeyboardInterrupt, EOFError):
-            print("\nخداحافظ!")
+            print("\nGoodbye!")
             sys.exit(0)
 
 

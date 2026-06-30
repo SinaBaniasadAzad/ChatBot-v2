@@ -1,9 +1,9 @@
 """
-Orchestrator مکالمه — مغز سیستم.
+Conversation orchestrator — the brain of the system.
 
-جریان: classify -> decide -> (پایان | یک سوال | fallback). سقف سوال‌ها اینجا اعمال
-می‌شود، نه در مدل. وضعیت هر جلسه با session_id نگه‌داری می‌شود تا پاسخِ سوال تکمیلی
-به همان context بچسبد.
+Flow: classify -> decide -> (finish | one question | fallback). The question
+budget is enforced here, not in the model. Each session's state is kept by
+session_id so a follow-up answer attaches to the same context.
 """
 from __future__ import annotations
 
@@ -28,9 +28,9 @@ class ConversationManager:
         self.interaction_logger = interaction_logger or InteractionLogger(
             settings.interaction_log_enabled, settings.interaction_log_path
         )
-        self._sessions: dict[str, Session] = {}  # تولید: Redis/DB
+        self._sessions: dict[str, Session] = {}  # production: Redis/DB
 
-    # ---- API عمومی ----
+    # ---- Public API ----
     def start(self, summary: str, description: str) -> dict:
         session = Session(summary=summary, description=description)
         self._sessions[session.session_id] = session
@@ -39,13 +39,13 @@ class ConversationManager:
     def answer(self, session_id: str, user_answer: str) -> dict:
         session = self._sessions.get(session_id)
         if session is None:
-            raise KeyError("session_id نامعتبر است یا منقضی شده.")
+            raise KeyError("session_id is invalid or has expired.")
         if session.pending_question is None:
-            return self._response(session)  # چیزی پرسیده نشده بود
+            return self._response(session)  # nothing was asked
         session.add_clarification(session.pending_question, user_answer)
         return self._run(session)
 
-    # ---- منطق داخلی ----
+    # ---- Internal logic ----
     def _run(self, session: Session) -> dict:
         output, meta = self.classifier.classify(
             session.summary, session.description, session.clarifications or None
@@ -58,7 +58,7 @@ class ConversationManager:
             session.session_id, decision.action.value, decision.labels, session.questions_asked,
         )
 
-        # ثبت ماندگارِ این دور (تیکت، شواهد، تصمیم، سوال، متادیتای LLM).
+        # Persist this round (ticket, evidence, decision, question, LLM metadata).
         self.interaction_logger.log_round(session, output, decision, meta)
 
         if decision.action == Action.ASK:
@@ -71,7 +71,7 @@ class ConversationManager:
             )
             session.pending_question = None
             session.result = self._build_result(decision, output)
-            self.interaction_logger.log_final(session)  # رکورد نهایی جلسه
+            self.interaction_logger.log_final(session)  # final session record
 
         return self._response(session)
 

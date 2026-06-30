@@ -1,8 +1,9 @@
 """
-بارگذاری taxonomy از YAML به اشیای پایتونی.
+Load the taxonomy from YAML into Python objects.
 
-تمام بخش‌های دیگر (prompt، schema، evaluation) دسته‌ها را *فقط* از اینجا می‌خوانند.
-بنابراین افزودن دسته/لایهٔ جدید در YAML به‌صورت خودکار همه‌جا اعمال می‌شود.
+Every other part of the system (prompt, schema, evaluation) reads the
+categories *only* from here, so adding a new label/layer in the YAML
+automatically propagates everywhere.
 """
 from __future__ import annotations
 
@@ -81,5 +82,5 @@ def load_taxonomy(path: Path | None = None) -> Taxonomy:
             )
         )
     if not layers:
-        raise ValueError("taxonomy.yaml هیچ لایه‌ای ندارد.")
+        raise ValueError("taxonomy.yaml defines no layers.")
     return Taxonomy(layers=layers, signals=raw.get("signals") or {})

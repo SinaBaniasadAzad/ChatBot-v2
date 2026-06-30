@@ -1,9 +1,9 @@
 """
-Wrapper نازک روی DeepSeek (سازگار با OpenAI SDK).
+Thin wrapper around DeepSeek (OpenAI-SDK compatible).
 
-مسئولیت‌ها: فراخوانی API، حالت JSON، retry روی خطای شبکه/parse، self-consistency،
-و برگرداندن متادیتا (latency و مصرف توکن) برای لاگ و تحلیل هزینه.
-هیچ منطق تجاری اینجا نیست.
+Responsibilities: API calls, JSON mode, retry on network/parse errors,
+self-consistency, and returning metadata (latency and token usage) for
+logging and cost analysis. No business logic lives here.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ log = get_logger("llm.client")
 
 @dataclass
 class LLMResponse:
-    """خروجی یک فراخوانی + متادیتا (برای لاگ)."""
+    """The result of a single call plus metadata (for logging)."""
     data: dict
     model: str
     latency_ms: float
@@ -47,7 +47,7 @@ class DeepSeekClient:
         model: str | None = None,
         temperature: float | None = None,
     ) -> LLMResponse:
-        """یک فراخوانی در حالت JSON. خروجی: LLMResponse. در صورت خطا retry می‌کند."""
+        """One JSON-mode call. Returns an LLMResponse; retries on failure."""
         model = model or settings.model
         temperature = settings.temperature if temperature is None else temperature
         messages = [
@@ -67,20 +67,20 @@ class DeepSeekClient:
                 )
                 latency_ms = (time.perf_counter() - t0) * 1000
                 content = resp.choices[0].message.content or ""
-                data = json.loads(content)  # JSON mode فقط نحو معتبر را تضمین می‌کند
+                data = json.loads(content)  # JSON mode only guarantees valid syntax
                 usage = resp.usage.model_dump() if resp.usage else {}
                 return LLMResponse(
                     data=data, model=model, latency_ms=latency_ms, usage=usage, raw=content
                 )
             except json.JSONDecodeError as e:
                 last_err = e
-                log.warning("خروجی JSON معتبر نبود (تلاش %d/%d).", attempt, settings.max_retries)
-            except Exception as e:  # خطای شبکه/API
+                log.warning("Output was not valid JSON (attempt %d/%d).", attempt, settings.max_retries)
+            except Exception as e:  # network/API error
                 last_err = e
-                log.warning("خطای فراخوانی API (تلاش %d/%d): %s", attempt, settings.max_retries, e)
-            time.sleep(min(2 ** attempt, 8))  # backoff نمایی ساده
+                log.warning("API call error (attempt %d/%d): %s", attempt, settings.max_retries, e)
+            time.sleep(min(2 ** attempt, 8))  # simple exponential backoff
 
-        raise RuntimeError(f"فراخوانی DeepSeek پس از {settings.max_retries} تلاش ناموفق بود: {last_err}")
+        raise RuntimeError(f"DeepSeek call failed after {settings.max_retries} attempts: {last_err}")
 
     def majority_vote(
         self,
@@ -92,9 +92,9 @@ class DeepSeekClient:
         temperature: float = 0.5,
     ) -> tuple[LLMResponse, float]:
         """
-        Self-consistency: n بار نمونه‌گیری و رأی‌گیری روی data هر پاسخ.
-        key_fn(dict) -> کلیدِ قابل‌مقایسه (مثلاً تاپلِ برچسب‌ها).
-        خروجی: (پاسخِ برنده، نسبت توافق در بازهٔ 0..1).
+        Self-consistency: sample n times and vote over each response's data.
+        key_fn(dict) -> a comparable key (e.g. the tuple of labels).
+        Returns: (winning response, agreement ratio in 0..1).
         """
         responses: list[LLMResponse] = []
         keys: list = []

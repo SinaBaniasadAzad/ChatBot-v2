@@ -1,20 +1,21 @@
 """
-داشبوردِ دقتِ حرفه‌ای (برای ارائه) — روی نتایجِ eval_incdb.run_evaluation.
+Professional accuracy dashboard (presentation-ready) — over the results of
+eval_incdb.run_evaluation.
 
-نمایش:
-  • کارت‌های KPI: دقتِ کل (هر دو لایه) + دقتِ هر لایه
-  • نمودارِ recall هر کلاس (Incident / Service Request / ERP / Staff)
-  • Confusion matrix هر لایه (heatmap)
-  • نوار پایین: مدل، تعداد نمونه، توکن/هزینه، تاریخ
+Shows:
+  • KPI cards: overall accuracy (both layers) + per-layer accuracy
+  • Per-class recall chart (Incident / Service Request / ERP / Staff)
+  • Per-layer confusion matrix (heatmap)
+  • Footer bar: model, sample size, tokens/cost, date
 
-استفاده روی Kaggle (یک سلول):
+Usage on Kaggle (one cell):
     from scripts.report import evaluate_and_report
     res, fig = evaluate_and_report(
         "data/INC_DB.jsonl", balanced=75, workers=6,
         save_path="/kaggle/working/accuracy_report.png",
     )
 
-خروجی هم inline نمایش داده می‌شود، هم PNGِ باکیفیت برای اسلاید ذخیره می‌شود.
+The output is both displayed inline and saved as a high-quality PNG for slides.
 """
 from __future__ import annotations
 
@@ -28,21 +29,21 @@ from matplotlib.patches import FancyBboxPatch
 from scripts.eval_incdb import print_text_report, run_evaluation
 from src.reporting.cost import Pricing, breakdown_from_eval
 
-# پالت
+# Palette
 _INK = "#0f172a"
 _MUTE = "#64748b"
 _GRID = "#e2e8f0"
-_LAYER_COLORS = ["#4f46e5", "#0d9488", "#b45309", "#9333ea"]  # برای لایه‌های ۱،۲،…
+_LAYER_COLORS = ["#4f46e5", "#0d9488", "#b45309", "#9333ea"]  # for layers 1, 2, …
 
-# رنگِ اجزای هزینه (هم‌خوان با گزارشِ HTML)
-_C_HIT = "#0d9488"     # ورودیِ cache-hit
-_C_MISS = "#d97706"    # ورودیِ cache-miss
-_C_OUT = "#4f46e5"     # خروجی/completion
-_C_SAVE = "#16a34a"    # صرفه‌جویی
+# Cost-component colors (consistent with the HTML report)
+_C_HIT = "#0d9488"     # cache-hit input
+_C_MISS = "#d97706"    # cache-miss input
+_C_OUT = "#4f46e5"     # output/completion
+_C_SAVE = "#16a34a"    # savings
 
 
 def _grade(v: float) -> str:
-    """رنگِ نمره: خوب/متوسط/ضعیف."""
+    """Score color: good / fair / poor."""
     if v >= 0.90:
         return "#0d9488"
     if v >= 0.80:
@@ -51,7 +52,7 @@ def _grade(v: float) -> str:
 
 
 def _tint(hex_color: str, f: float = 0.12) -> tuple:
-    """نسخهٔ روشن (آمیخته با سفید)."""
+    """A lighter version (blended with white)."""
     r, g, b = mcolors.to_rgb(hex_color)
     return (1 - f + f * r, 1 - f + f * g, 1 - f + f * b)
 
@@ -72,10 +73,10 @@ def _draw_kpis(ax, res: dict) -> None:
     for i, (label, value, sub, primary) in enumerate(tiles):
         x = i * (w + gap)
         accent = _grade(value)
-        if primary:  # سرتیترِ خنثیٰ و مقتدر (سرمه‌ای) + نقطهٔ رنگیِ نمره
+        if primary:  # neutral, authoritative header (navy) + colored score dot
             face, edge, lw = "#1f2937", "#1f2937", 0
             num_color, lbl_color, sub_color = "white", "white", "#cbd5e1"
-        else:  # کارتِ هر لایه: ته‌رنگِ نمره + عددِ هم‌رنگ
+        else:  # per-layer card: score tint background + matching-color number
             face, edge, lw = _tint(accent, 0.14), accent, 1.4
             num_color, lbl_color, sub_color = accent, _INK, _MUTE
         ax.add_patch(
@@ -89,7 +90,7 @@ def _draw_kpis(ax, res: dict) -> None:
                 color=lbl_color, fontweight="bold", linespacing=1.25)
         ax.text(x + w / 2, 0.45, f"{value*100:.1f}%", ha="center", va="center",
                 fontsize=33, color=num_color, fontweight="bold")
-        if primary:  # نقطهٔ رنگیِ نمره روی کارتِ سرمه‌ای
+        if primary:  # colored score dot on the navy card
             ax.scatter([x + 0.06], [0.78], s=90, color=accent, zorder=5)
         ax.text(x + w / 2, 0.16, sub, ha="center", va="center", fontsize=11, color=sub_color)
 
@@ -100,7 +101,7 @@ def _draw_recall(ax, res: dict) -> None:
         color = _LAYER_COLORS[li % len(_LAYER_COLORS)]
         for c in L["classes"]:
             rows.append((c["name"], c["recall"], c["correct"], c["total"], color, L["name"]))
-    rows.reverse()  # اولین کلاس بالا
+    rows.reverse()  # first class on top
 
     y = np.arange(len(rows))
     ax.barh(y, [r[1] for r in rows], color=[r[4] for r in rows], height=0.62, zorder=3)
@@ -122,7 +123,7 @@ def _draw_recall(ax, res: dict) -> None:
     ax.spines["bottom"].set_color(_GRID)
     ax.tick_params(length=0)
 
-    # افسانهٔ لایه‌ها
+    # Layer legend
     handles = [plt.Rectangle((0, 0), 1, 1, color=_LAYER_COLORS[i % len(_LAYER_COLORS)]) for i in range(len(res["layers"]))]
     ax.legend(
     handles,
@@ -164,7 +165,7 @@ def _draw_confusion(ax, L: dict) -> None:
 
 
 def _draw_cost_tokens(ax, b) -> None:
-    """نوارِ افقیِ انباشتهٔ ترکیبِ توکن: cached / uncached input + output."""
+    """Stacked horizontal bar of token composition: cached / uncached input + output."""
     segs = [
         ("Cached input", b.cache_hit_tokens, _C_HIT),
         ("Uncached input", b.cache_miss_tokens, _C_MISS),
@@ -180,7 +181,7 @@ def _draw_cost_tokens(ax, b) -> None:
     ax.axis("off")
     ax.set_title("Token composition  ·  cached vs uncached input + output",
                  fontsize=13, fontweight="bold", color=_INK, loc="left", pad=10)
-    # افسانه با شمارش و درصد — هر آیتم در یک خطِ جدا (بدونِ هم‌پوشانی)
+    # Legend with counts and percentages — each item on its own line (no overlap)
     for i, (name, val, color) in enumerate(segs):
         pct = val / total * 100
         y = -0.95 - i * 0.62
@@ -192,7 +193,7 @@ def _draw_cost_tokens(ax, b) -> None:
 
 
 def _tiles(ax, items, ncol: int) -> None:
-    """شبکهٔ کاشی‌های KPI روی یک محور. items = [(label, value, accent), ...]."""
+    """A grid of KPI tiles on one axis. items = [(label, value, accent), ...]."""
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
@@ -240,7 +241,7 @@ def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.0028,
         left=0.07, right=0.95, top=0.885, bottom=0.055,
     )
 
-    # سرتیتر
+    # Header
     fig.text(0.07, 0.952, "Ticket Classification — Accuracy & Cost Report",
              fontsize=22, fontweight="bold", color=_INK)
     sub = f"Model: {res.get('model') or '—'}    ·    Tickets evaluated: {res['n']}"
@@ -256,12 +257,12 @@ def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.0028,
     for i, L in enumerate(layers):
         _draw_confusion(fig.add_subplot(sub_gs[0, i]), L)
 
-    # ردیفِ هزینه/توکن: چپ = ترکیبِ توکن، راست = کاشی‌های KPIِ هزینه
+    # Cost/token row: left = token composition, right = cost KPI tiles
     cost_gs = gs[3].subgridspec(1, 2, width_ratios=[1.25, 1.0], wspace=0.16)
     _draw_cost_tokens(fig.add_subplot(cost_gs[0, 0]), b)
     _draw_cost_kpis(fig.add_subplot(cost_gs[0, 1]), b)
 
-    # نوار پایین — مفروضاتِ قیمت
+    # Footer bar — pricing assumptions
     p = b.pricing
     foot = (
         f"Single-shot evaluation (no clarifying questions)   ·   "
@@ -291,13 +292,13 @@ def evaluate_and_report(
     show=True,
 ):
     """
-    یک اجرای واقعی → همهٔ خروجی‌ها (بدونِ مصرفِ دوبارهٔ API). خروجی: (res, fig).
+    One real run → all outputs (without spending the API again). Returns: (res, fig).
 
-    آرگومان‌های ذخیره‌سازی (هرکدام داده شود نوشته می‌شود):
-      • out_path    : همهٔ پیش‌بینی‌ها (JSONL)
-      • errors_out  : فقط تیکت‌های اشتباه + متن (JSONL)
-      • save_path   : داشبوردِ دقت+هزینه (PNG)
-      • html_path   : گزارشِ HTMLِ مستقلِ هزینه/توکن
+    Save arguments (each one given is written):
+      • out_path    : all predictions (JSONL)
+      • errors_out  : only misclassified tickets + text (JSONL)
+      • save_path   : accuracy + cost dashboard (PNG)
+      • html_path   : standalone cost/token HTML report
     """
     res = run_evaluation(
         data_path, limit=limit, balanced=balanced, frac=frac, seed=seed, workers=workers,
@@ -309,7 +310,7 @@ def evaluate_and_report(
         fig.savefig(save_path, dpi=160, bbox_inches="tight", facecolor="white")
         print("saved:", save_path)
     if html_path:
-        # importِ تنبل تا وابستگیِ متقابل و بارِ اضافه نباشد.
+        # Lazy import to avoid a circular dependency and extra overhead.
         from pathlib import Path
 
         from scripts.cost_report import render_html
@@ -335,7 +336,7 @@ if __name__ == "__main__":
     ap.add_argument("--frac", type=float, default=None, help="fraction per combo, e.g. 0.2")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--errors", default=None, help="ذخیرهٔ تیکت‌های اشتباه + متن (JSONL)")
+    ap.add_argument("--errors", default=None, help="save misclassified tickets + text (JSONL)")
     ap.add_argument("--save", default="accuracy_report.png")
     a = ap.parse_args()
     evaluate_and_report(

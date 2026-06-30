@@ -1,8 +1,8 @@
 """
-لایهٔ FastAPI روی همان هستهٔ مشترک.
+FastAPI layer over the same shared core.
 
-اجرا:  uvicorn src.api.app:app --reload
-سپس مستندات تعاملی:  http://127.0.0.1:8000/docs
+Run:  uvicorn src.api.app:app --reload
+Then the interactive docs:  http://127.0.0.1:8000/docs
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from src.conversation.manager import ConversationManager
 
 app = FastAPI(title="Ticket Triage Chatbot", version="0.1.0")
 
-# یک نمونهٔ مشترک (prompt و few-shot یک‌بار ساخته می‌شوند).
+# A single shared instance (prompt and few-shot are built once).
 _manager: ConversationManager | None = None
 
 

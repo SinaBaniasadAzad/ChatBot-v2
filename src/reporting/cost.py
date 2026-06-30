@@ -1,18 +1,19 @@
 """
-موتورِ مشترکِ محاسبهٔ هزینه و توکن — **تنها منبعِ حقیقت** برای اعداد.
+Shared cost & token engine — the **single source of truth** for the numbers.
 
-چرا جدا؟ هم گزارشِ HTML و هم داشبوردِ تصویری باید *دقیقاً* یک عدد را نشان دهند.
-این ماژول از دادهٔ **واقعی** تغذیه می‌شود:
-  • خروجی `scripts.eval_incdb.run_evaluation` (اجرای واقعیِ مدل روی دیتاست)، یا
-  • لاگِ تعاملاتِ تولید: `logs/interactions.jsonl` (هر `round` یک فراخوانیِ API).
+Why separate? Both the HTML report and the visual dashboard must show *exactly*
+the same number. This module is fed by **real** data:
+  • the output of `scripts.eval_incdb.run_evaluation` (a real model run over the dataset), or
+  • the production interaction log: `logs/interactions.jsonl` (each `round` is one API call).
 
-مدلِ قیمت‌گذاریِ DeepSeek سه‌نرخی است (به‌ازای هر ۱M توکن):
-  • ورودیِ cache-miss   (price_in)
-  • ورودیِ cache-hit    (price_cache)  ← بسیار ارزان‌تر؛ اهرمِ اصلیِ صرفه‌جویی
-  • خروجی/completion    (price_out)
+DeepSeek pricing has three tiers (per 1M tokens):
+  • cache-miss input   (price_in)
+  • cache-hit input    (price_cache)  ← much cheaper; the main savings lever
+  • output/completion  (price_out)
 
-هیچ نرخی اینجا «حقیقتِ مطلق» نیست؛ مقادیرِ پیش‌فرض صرفاً «مفروضات» هستند و باید با
-نرخِ روزِ DeepSeek تأیید شوند (در خروجی هم شفاف برچسب می‌خورند).
+No rate here is "absolute truth"; the defaults are merely "assumptions" and
+must be confirmed against current DeepSeek pricing (they are labeled
+transparently in the output too).
 """
 from __future__ import annotations
 
@@ -21,19 +22,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# قیمت‌گذاری (مفروضات — با نرخِ روز تأیید شود). واحد: دلار به‌ازای هر ۱M توکن.
-# مقادیر پیش‌فرض با مسیرِ پرکاربردِ scripts/report.evaluate_and_report هم‌خوان‌اند.
+# Pricing (assumptions — confirm against current rates). Unit: USD per 1M tokens.
+# Defaults match the common path of scripts/report.evaluate_and_report.
 # ---------------------------------------------------------------------------
-DEFAULT_PRICE_IN = 0.14      # ورودیِ cache-miss
-DEFAULT_PRICE_CACHE = 0.0028  # ورودیِ cache-hit
-DEFAULT_PRICE_OUT = 0.28     # خروجی (completion)
+DEFAULT_PRICE_IN = 0.14      # cache-miss input
+DEFAULT_PRICE_CACHE = 0.0028  # cache-hit input
+DEFAULT_PRICE_OUT = 0.28     # output (completion)
 
 _MILLION = 1_000_000
 
 
 @dataclass(frozen=True)
 class Pricing:
-    """نرخِ سه‌گانهٔ DeepSeek به‌ازای هر ۱M توکن (دلار)."""
+    """DeepSeek's three-tier rate per 1M tokens (USD)."""
 
     input_per_m: float = DEFAULT_PRICE_IN
     cache_hit_per_m: float = DEFAULT_PRICE_CACHE
@@ -41,28 +42,28 @@ class Pricing:
 
     @classmethod
     def from_tuple(cls, prices: tuple[float, float, float]) -> "Pricing":
-        """سازگاری با ترتیبِ قدیمیِ (price_in, price_cache, price_out)."""
+        """Backwards compatible with the legacy (price_in, price_cache, price_out) order."""
         price_in, price_cache, price_out = prices
         return cls(input_per_m=price_in, cache_hit_per_m=price_cache, output_per_m=price_out)
 
 
 @dataclass(frozen=True)
 class CostBreakdown:
-    """تجزیهٔ کاملِ هزینه/توکن — هر چیزی که گزارش به آن نیاز دارد."""
+    """A full cost/token breakdown — everything the report needs."""
 
-    # شمارشِ توکن
+    # Token counts
     cache_hit_tokens: int
     cache_miss_tokens: int
     completion_tokens: int
-    # واحدهای کار
+    # Units of work
     n_tickets: int
     n_calls: int
-    # متادیتا
+    # Metadata
     model: str | None
     latency_ms_avg: float
     pricing: Pricing
 
-    # ---- توکن‌های مشتق ----
+    # ---- Derived token counts ----
     @property
     def prompt_tokens(self) -> int:
         return self.cache_hit_tokens + self.cache_miss_tokens
@@ -73,10 +74,10 @@ class CostBreakdown:
 
     @property
     def cache_hit_rate(self) -> float:
-        """نسبتِ توکن‌های ورودیِ کش‌شده (۰..۱)."""
+        """Share of cached input tokens (0..1)."""
         return self.cache_hit_tokens / self.prompt_tokens if self.prompt_tokens else 0.0
 
-    # ---- هزینهٔ مشتق (دلار) ----
+    # ---- Derived cost (USD) ----
     @property
     def cost_cache_hit(self) -> float:
         return self.cache_hit_tokens * self.pricing.cache_hit_per_m / _MILLION
@@ -99,14 +100,14 @@ class CostBreakdown:
 
     @property
     def cost_without_cache(self) -> float:
-        """هزینهٔ فرضی اگر هیچ کشی نبود (همهٔ ورودی با نرخِ cache-miss)."""
+        """Hypothetical cost with no cache (all input at the cache-miss rate)."""
         return (
             self.prompt_tokens * self.pricing.input_per_m + self.completion_tokens * self.pricing.output_per_m
         ) / _MILLION
 
     @property
     def cache_savings(self) -> float:
-        """دلارِ صرفه‌جویی‌شده به‌لطفِ کشِ پرامپت."""
+        """Dollars saved thanks to prompt caching."""
         return self.cost_without_cache - self.cost_total
 
     @property
@@ -114,7 +115,7 @@ class CostBreakdown:
         base = self.cost_without_cache
         return (self.cache_savings / base) if base else 0.0
 
-    # ---- اقتصادِ واحد ----
+    # ---- Unit economics ----
     @property
     def cost_per_ticket(self) -> float:
         return self.cost_total / self.n_tickets if self.n_tickets else 0.0
@@ -132,11 +133,11 @@ class CostBreakdown:
         return self.n_calls / self.n_tickets if self.n_tickets else 0.0
 
     def project(self, monthly_tickets: int) -> float:
-        """پیش‌بینیِ هزینهٔ ماهانه — صرفاً برون‌یابیِ هزینهٔ *اندازه‌گیری‌شدهٔ* هر تیکت."""
+        """Project monthly cost — simply an extrapolation of the *measured* cost per ticket."""
         return self.cost_per_ticket * monthly_tickets
 
     def as_dict(self) -> dict:
-        """نمای تخت برای لاگ/تست/سریال‌سازی."""
+        """A flat view for logging/testing/serialization."""
         return {
             "model": self.model,
             "n_tickets": self.n_tickets,
@@ -161,11 +162,11 @@ class CostBreakdown:
 
 def _split_cache(tokens: dict) -> tuple[int, int, int]:
     """
-    (cache_hit, cache_miss, completion) را از یک dictِ توکن استخراج می‌کند.
+    Extract (cache_hit, cache_miss, completion) from a token dict.
 
-    اگر تفکیکِ hit/miss در داده نبود (برخی فراخوانی‌ها گزارش نمی‌کنند)، کلِ promptِ
-    موجود به‌صورتِ محافظه‌کارانه cache-miss فرض می‌شود (گران‌ترین حالت) تا هزینه
-    دست‌کم گرفته نشود.
+    If the hit/miss split is absent from the data (some calls don't report it),
+    the entire available prompt is conservatively assumed to be cache-miss (the
+    most expensive case) so cost is never underestimated.
     """
     hit = int(tokens.get("cache_hit", 0) or 0)
     miss = int(tokens.get("cache_miss", 0) or 0)
@@ -185,7 +186,7 @@ def compute_breakdown(
     latency_ms_avg: float = 0.0,
     pricing: Pricing | None = None,
 ) -> CostBreakdown:
-    """ساختِ `CostBreakdown` از یک dictِ توکن (کلیدها: prompt/cache_hit/cache_miss/completion)."""
+    """Build a `CostBreakdown` from a token dict (keys: prompt/cache_hit/cache_miss/completion)."""
     hit, miss, completion = _split_cache(tokens)
     return CostBreakdown(
         cache_hit_tokens=hit,
@@ -200,9 +201,9 @@ def compute_breakdown(
 
 
 def breakdown_from_eval(res: dict, pricing: Pricing | None = None) -> CostBreakdown:
-    """`CostBreakdown` از خروجیِ `scripts.eval_incdb.run_evaluation`.
+    """A `CostBreakdown` from the output of `scripts.eval_incdb.run_evaluation`.
 
-    در ارزیابیِ single-shot هر تیکت دقیقاً یک فراخوانی دارد، پس n_calls == n.
+    In single-shot evaluation each ticket has exactly one call, so n_calls == n.
     """
     return compute_breakdown(
         res.get("tokens", {}),
@@ -216,11 +217,11 @@ def breakdown_from_eval(res: dict, pricing: Pricing | None = None) -> CostBreakd
 
 def aggregate_log(path: str | Path, pricing: Pricing | None = None) -> CostBreakdown:
     """
-    تجمیعِ مصرفِ توکن از لاگِ تولید (`logs/interactions.jsonl`).
+    Aggregate token usage from the production log (`logs/interactions.jsonl`).
 
-    قرارداد (از `src/utils/interaction_log.py`):
-      • هر رویدادِ `round`        = یک فراخوانیِ API؛ توکن‌ها در `llm.usage`.
-      • هر رویدادِ `session_final` = یک تیکتِ کامل‌شده (واحدِ اقتصادِ هزینه).
+    Contract (from `src/utils/interaction_log.py`):
+      • each `round` event        = one API call; tokens are in `llm.usage`.
+      • each `session_final` event = one completed ticket (the cost-economics unit).
     """
     tokens = {"cache_hit": 0, "cache_miss": 0, "completion": 0}
     n_calls = 0
@@ -237,7 +238,7 @@ def aggregate_log(path: str | Path, pricing: Pricing | None = None) -> CostBreak
         try:
             rec = json.loads(raw)
         except json.JSONDecodeError:
-            continue  # خطِ خراب نباید کلِ گزارش را بشکند
+            continue  # a corrupt line must not break the whole report
 
         event = rec.get("event")
         if event == "round":
@@ -257,14 +258,14 @@ def aggregate_log(path: str | Path, pricing: Pricing | None = None) -> CostBreak
             hit = usage.get("prompt_cache_hit_tokens")
             miss = usage.get("prompt_cache_miss_tokens")
             if hit is None or miss is None:
-                hit, miss = 0, pt  # تفکیک گزارش نشده → محافظه‌کارانه همه miss
+                hit, miss = 0, pt  # split not reported → conservatively all miss
             tokens["cache_hit"] += int(hit or 0)
             tokens["cache_miss"] += int(miss or 0)
             tokens["completion"] += ct
         elif event == "session_final":
             n_finals += 1
 
-    # n_tickets: ترجیحاً شمارشِ جلساتِ نهایی‌شده؛ در نبودش، شناسه‌های یکتای جلسه.
+    # n_tickets: prefer the count of finalized sessions; otherwise unique session ids.
     n_tickets = n_finals or len(session_ids)
     latency_ms_avg = latency_sum / latency_n if latency_n else 0.0
     return compute_breakdown(

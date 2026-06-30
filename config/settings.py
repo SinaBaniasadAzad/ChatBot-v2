@@ -1,4 +1,4 @@
-"""بارگذاری پیکربندی از .env و مسیرهای پروژه."""
+"""Load configuration from .env and resolve project paths."""
 from __future__ import annotations
 
 import os
@@ -33,7 +33,7 @@ class Settings:
     enable_self_consistency: bool = _get_bool("ENABLE_SELF_CONSISTENCY", False)
     self_consistency_samples: int = int(os.getenv("SELF_CONSISTENCY_SAMPLES", "3"))
 
-    # --- Interaction logging (برای تحلیل دقت و ساخت Gold Set) ---
+    # --- Interaction logging (for accuracy analysis and Gold Set building) ---
     interaction_log_enabled: bool = _get_bool("INTERACTION_LOG_ENABLED", True)
     interaction_log_path: Path = PROJECT_ROOT / os.getenv(
         "INTERACTION_LOG_PATH", "logs/interactions.jsonl"
@@ -46,8 +46,7 @@ class Settings:
     def require_api_key(self) -> None:
         if not self.deepseek_api_key:
             raise RuntimeError(
-                "DEEPSEEK_API_KEY تنظیم نشده است. فایل .env.example را به .env کپی کرده "
-                "و کلید خود را وارد کنید."
+                "DEEPSEEK_API_KEY is not set. Copy .env.example to .env and add your key."
             )
 
 

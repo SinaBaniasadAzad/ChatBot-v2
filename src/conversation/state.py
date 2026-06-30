@@ -1,4 +1,4 @@
-"""وضعیت یک مکالمه/جلسه. در نسخهٔ تولید می‌توان این را در Redis نگه داشت."""
+"""State of a single conversation/session. In production this could live in Redis."""
 from __future__ import annotations
 
 import uuid
@@ -7,9 +7,9 @@ from enum import Enum
 
 
 class Status(str, Enum):
-    NEED_INFO = "need_info"            # منتظر پاسخ سوال تکمیلی
-    COMPLETED = "completed"            # با اطمینان دسته‌بندی شد
-    COMPLETED_LOW_CONF = "completed_low_confidence"  # حدس زده شد، نیازمند بازبینی
+    NEED_INFO = "need_info"            # awaiting a follow-up answer
+    COMPLETED = "completed"            # classified confidently
+    COMPLETED_LOW_CONF = "completed_low_confidence"  # guessed, needs review
 
 
 @dataclass

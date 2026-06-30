@@ -1,17 +1,21 @@
 # ============================================================================
-#  Taxonomy — تعریف دسته‌ها (منبع واحد حقیقت)
+#  Taxonomy — category definitions (the single source of truth)
 # ----------------------------------------------------------------------------
-#  افزودن دستهٔ جدید = افزودن یک بلوک label اینجا. هیچ تغییری در کد لازم نیست.
+#  Adding a new category = adding one label block here. No code change required.
 #
-#  هر «layer» یک بُعد دسته‌بندی است. هر «label» یک گزینه در آن بُعد.
-#  - id    : slug پایدار و یکتا (مدل همین را برمی‌گرداند، نه نام نمایشی)
-#  - name  : نام نمایشی
-#  - definition : تعریف دقیق (به مدل تزریق می‌شود)
-#  - cues  : کلمات/عبارات نشانه‌ای (فارسی و انگلیسی). فقط «راهنما» هستند، نه قانون قطعی.
+#  Each "layer" is a classification dimension. Each "label" is an option in it.
+#  - id    : a stable, unique slug (the model returns this, not the display name)
+#  - name  : the display name
+#  - definition : a precise definition (injected into the model)
+#  - cues  : signal words/phrases (Persian and English). Hints only, not hard rules.
 #
-#  نکتهٔ مهندسی: «layer1 (نوع)» عمداً Incident-leaning است؛ این رفتار روی دادهٔ واقعی
-#  بهترین دقت را داد (مثلاً «امکانِ ثبت ندارم» ۸۹٪ Incident است). فقط «layer2 (حوزه)»
-#  بر پایهٔ آمارِ کلِ دیتاست اصلاح شده (پوزیشن/قرارداد/checkout → ERP، نه Staff).
+#  Engineering note: "layer1 (Type)" is intentionally Incident-leaning; this
+#  behavior gave the best accuracy on real data (e.g. "I can't register" is 89%
+#  Incident). Only "layer2 (Domain)" was tuned from full-dataset statistics
+#  (position/contract/checkout → ERP, not Staff).
+#  NOTE: the Persian values below (definitions, cues, rules, signals) are
+#  functional — they are injected into the LLM prompt and drive keyword
+#  matching, so they are deliberately kept in the original language.
 # ============================================================================
 
 meta:
@@ -195,9 +199,10 @@ layers:
           - "بک آپ"
           - "ایجاد حساب کاربری"
 # ============================================================================
-#  نقشهٔ سیگنالِ متخصص (کلیدواژه → حوزه + نوع، همراه با اولویت)
-#  هر کلیدواژه «هم‌زمان» حوزه و نوع را می‌گوید. عدد = اولویت/قدرتِ سیگنال
-#  (طبق متنِ prompt، عددِ بزرگ‌تر تعیین‌کننده‌تر است؛ هنگام تعارض، بزرگ‌تر برنده).
+#  Expert signal map (keyword → Domain + Type, with a priority)
+#  Each keyword indicates Domain and Type "at the same time". The number is the
+#  signal priority/strength (per the prompt text, a larger number is more
+#  decisive; on conflict, the larger one wins).
 # ============================================================================
 signals:
   domain_type:
@@ -271,17 +276,18 @@ signals:
     - "نوع (Type): «لغو/حذف/اصلاحِ یک رکورد» فقط وقتی Service Request است که هیچ خطا/مسدودیتی نباشد و صرفاً اشتباهِ سادهٔ خودِ کاربر باشد (مثل: اشتباهی مرخصی زدم، لغو کنید)."
     - "حوزه (Domain): «تغییر پوزیشن (Job Position)»، «قرارداد/Contract Type»، «تایم‌شیت‌اپرور»، «Cost Center»، «checkout/force allocation/disable»، اصلاحِ پروفایلِ پرسنلی و «دورهٔ جبران خدمت» → ERP. وام/ضمانت/صندوق/سفته، ارزیابیِ عملکرد/نمره/اهداف/خودارزیابی، و درخواست‌های حساب/زیرساختِ IT (Jabber/VPN/بک‌آپ/ایجاد حساب Staff) → Staff. حضوروغیاب/مرخصی/ماموریت/پانچ/تایم‌شیت/حقوق و فیش → ERP."
     - "هشدارِ حوزه (دومین خطای پُرتکرارِ قدیمی): «تغییر پوزیشن» و «قرارداد» در دادهٔ واقعی ERP هستند نه Staff (پوزیشن ۳۵ ERP/۸ Staff، قرارداد ۴۴ ERP/۲ Staff)؛ آن‌ها را به‌خاطرِ بوی منابعِ انسانی اشتباهاً Staff نزن."
-    # --- استثناهای باریک و پراِعتبارِ نوع (Type): هرکدام روی کلِ دیتاست ۸۸–۹۷٪ دقیق‌اند و با
-    #     ناحیهٔ Incident هم‌پوشانی ندارند. فقط همین الگوهای مشخص؛ بقیه همان Incident-leaning. ---
+    # --- Narrow, high-confidence Type exceptions: each is 88–97% accurate across the whole
+    #     dataset and does not overlap the Incident region. Only these specific patterns;
+    #     everything else stays Incident-leaning. (Rule text kept in Persian — it is prompt data.) ---
     - "نوع (Type) — تفکیکِ کلیدیِ Loan/وام: اگر «کلِ گزینه/قسمت/ماژولِ Loan» برای کاربر اصلاً وجود ندارد / نمایش داده نمی‌شود / هنوز فعال نشده (راه‌اندازیِ اولیه، اغلب پس از عضویت در صندوق) → **Service Request** (۹۷٪). اما اگر «یک مرحلهٔ مشخص درونِ فرآیندِ وام» خطا بدهد یا جلو نرود — تاییدِ ضامن، ریجکتِ ضامن، بارگذاریِ سفته/چک، ورود به مرحلهٔ تاییدِ HR، «ضامن تایید کرده ولی به مرحلهٔ بعد نمی‌رود» — → **Incident** (۷۰٪). «نبودنِ ماژول» با «خرابیِ یک مرحله» فرق دارد."
     - "نوع (Type) — این کارهای اداریِ تمیز Service Request هستند (نه Incident): تغییرِ «عنوان شغلی/پوزیشن» (۹۷٪)، بازکردنِ «دسترسیِ ثبتِ نمرهٔ خودارزیابی» (۱۰۰٪)، و «برگرداندنِ یک مرحلهٔ تاییدِ اشتباه» (دوبار approve، بازگشت به مرحلهٔ accounting/treasury/قبل) (۸۸٪)."
 
 # ============================================================================
-#  یادداشتِ حوزه‌بندی (بر پایهٔ آمارِ کلِ دیتاست، ۱۶۳۳ تیکت):
-#  • وام/صندوق/ضمانت (۲۴۲ Staff/۱۰ ERP)، ارزیابی (۵۲ Staff/۲ ERP) → Staff.
-#  • تغییر پوزیشن (۳۵ ERP/۸ Staff)، قرارداد (۴۴ ERP/۲ Staff)،
-#    checkout/allocation (۶۵ ERP/۰) → ERP. (taxonomyِ قبلی این‌ها را اشتباه Staff می‌گرفت.)
-#  • جبران خدمت کمی به ERP می‌چربد (۴ ERP/۲ Staff) — ناحیهٔ ابهامِ سبک.
-#  • نوع (Type) عمداً Incident-leaning نگه داشته شده؛ تلاش برای SR-leaning‌کردنِ آن
-#    دقتِ کل را از ۸۹٪ به ۸۴٪ کاهش داد (Incidentهای واقعی SR تشخیص داده می‌شدند).
+#  Domain-mapping notes (based on full-dataset statistics, 1633 tickets):
+#  • Loan/fund/guarantee (242 Staff/10 ERP), evaluation (52 Staff/2 ERP) → Staff.
+#  • Position change (35 ERP/8 Staff), contract (44 ERP/2 Staff),
+#    checkout/allocation (65 ERP/0) → ERP. (The previous taxonomy mislabeled these as Staff.)
+#  • "Compensation period" leans slightly toward ERP (4 ERP/2 Staff) — a mild gray area.
+#  • Type is intentionally kept Incident-leaning; trying to make it SR-leaning
+#    dropped overall accuracy from 89% to 84% (real Incidents were detected as SR).
 # ============================================================================

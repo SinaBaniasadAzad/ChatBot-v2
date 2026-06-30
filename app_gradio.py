@@ -1,21 +1,21 @@
 """
-رابط گرافیکیِ Ticket Routing Assistant — نسخهٔ Gradio (برای اجرا روی Kaggle).
+Graphical interface for the Ticket Routing Assistant — Gradio version (for Kaggle).
 
-نمایی حرفه‌ای روی همان ConversationManager موجود؛ بک‌اند دست‌نخورده است.
+A professional front-end over the existing ConversationManager; the backend is untouched.
 
-ویژگی‌ها:
-  • UI انگلیسیِ حرفه‌ای؛ محتوای فارسی (تیکت/سوال‌ها) در نواحیِ RTL.
-  • تمِ Dark/Light قابلِ سوییچ (بدون رفرش، تاریخچهٔ چت حفظ می‌شود).
-  • آواتارِ اختصاصی کنارِ هر پیام (کاربر / دستیار).
-  • اندیکاتورِ «Analyzing…» هنگام پردازش (تابع‌های generator).
-  • نشان‌های رنگیِ نتیجه + هشدارِ «نیاز به بازبینی» با دلیلِ کوتاه.
-  • جای‌گاهِ لوگوی شرکت در هدر + سوییچِ JSON خام برای دیباگ.
+Features:
+  • Professional English UI; Persian content (tickets/questions) in RTL areas.
+  • Switchable Dark/Light theme (no refresh, chat history preserved).
+  • Dedicated avatar next to each message (user / assistant).
+  • An "Analyzing…" indicator while processing (generator functions).
+  • Colored result badges + a "needs review" warning with a short reason.
+  • A slot for the company logo in the header + a raw-JSON toggle for debugging.
 
-اجرا روی Kaggle:
-  ۱) این فایل را در ریشهٔ پروژه بگذار: /kaggle/working/Test-ChatBot/app_gradio.py
-  ۲) اینترنتِ نوت‌بوک روشن + Secret به نام OPENROUTER_API_KEY.
-  ۳) نصب:  !pip -q install -U gradio openai pydantic PyYAML python-dotenv
-  ۴) اجرا:  %run /kaggle/working/Test-ChatBot/app_gradio.py
+Run on Kaggle:
+  1) Place this file at the project root: /kaggle/working/Test-ChatBot/app_gradio.py
+  2) Turn on notebook internet + a Secret named OPENROUTER_API_KEY.
+  3) Install:  !pip -q install -U gradio openai pydantic PyYAML python-dotenv
+  4) Run:      %run /kaggle/working/Test-ChatBot/app_gradio.py
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import os
 import sys
 
 # ---------------------------------------------------------------------------
-# ۱) پیکربندی — قبل از import پروژه
+# 1) Configuration — before importing the project
 # ---------------------------------------------------------------------------
 _KEY = ""
 try:
@@ -35,10 +35,10 @@ except Exception:
 
 os.environ["DEEPSEEK_API_KEY"] = _KEY
 os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-# ★ مدلِ تست (طبق درخواست):
+# ★ Test model (as requested):
 os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
 
-# ★ لوگوی شرکت: مسیرِ فایل (مثلاً "assets/logo.png") یا URL. خالی = نشانِ پیش‌فرض.
+# ★ Company logo: a file path (e.g. "assets/logo.png") or a URL. Empty = default mark.
 LOGO_SRC = "data/logo.png"
 
 try:
@@ -54,7 +54,7 @@ import gradio as gr  # noqa: E402
 from src.conversation.manager import ConversationManager  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# ۲) بک‌اندِ مشترک
+# 2) Shared backend
 # ---------------------------------------------------------------------------
 try:
     MANAGER = ConversationManager()
@@ -66,7 +66,7 @@ except Exception as exc:
 TAX = MANAGER.taxonomy
 
 # ---------------------------------------------------------------------------
-# ۳) آواتارها — SVG آفلاین (پایدار روی همهٔ سیستم‌ها)
+# 3) Avatars — offline SVG (stable on every system)
 # ---------------------------------------------------------------------------
 ASSETS = os.path.join(PROJECT, "assets")
 os.makedirs(ASSETS, exist_ok=True)
@@ -105,7 +105,7 @@ BOT_AVATAR = _write_asset("avatar_bot.svg", _BOT_SVG)
 USER_AVATAR = _write_asset("avatar_user.svg", _USER_SVG)
 
 # ---------------------------------------------------------------------------
-# ۴) رنگ‌ها و کمک‌تابع‌های نمایش
+# 4) Colors and display helpers
 # ---------------------------------------------------------------------------
 _COLORS = {
     "incident": "#e5484d",
@@ -123,7 +123,7 @@ def _color(label_id: str | None) -> str:
 
 
 def _cap(name: str) -> str:
-    """عنوانِ انگلیسیِ لایه: از «Type / نوع درخواست» بخشِ قبل از / را برمی‌دارد."""
+    """A layer's English title: takes the part before "/" from "Type / نوع درخواست"."""
     return name.split("/")[0].strip() if "/" in name else name.strip()
 
 
@@ -189,7 +189,7 @@ def _bubble(resp: dict) -> str:
 
 
 def _handle(resp: dict, history: list):
-    """خروجی مشترک: [chat, session, result_html, answer_row, ans, raw]."""
+    """Shared output: [chat, session, result_html, answer_row, ans, raw]."""
     sid = resp["session_id"]
     if resp["status"] == "need_info":
         history = history + [{"role": "assistant", "content": f"❓ {resp['question']}"}]
@@ -199,7 +199,7 @@ def _handle(resp: dict, history: list):
 
 
 # ---------------------------------------------------------------------------
-# ۵) هندلرها (generator → اندیکاتورِ «Analyzing…»)
+# 5) Handlers (generator → "Analyzing…" indicator)
 # ---------------------------------------------------------------------------
 def start_ticket(summary: str, description: str, history: list):
     history = history or []
@@ -246,7 +246,7 @@ def reset():
 
 
 # ---------------------------------------------------------------------------
-# ۶) ظاهر (CSS) — شاملِ حالتِ تیره
+# 6) Appearance (CSS) — including dark mode
 # ---------------------------------------------------------------------------
 _CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;500;700&display=swap');
@@ -301,7 +301,7 @@ _HEADER = f"""
 """
 
 # ---------------------------------------------------------------------------
-# ۷) چیدمان
+# 7) Layout
 # ---------------------------------------------------------------------------
 with gr.Blocks(css=_CSS, theme=gr.themes.Soft(primary_hue="indigo"), title="Ticket Routing Assistant") as demo:
     gr.HTML(_HEADER)

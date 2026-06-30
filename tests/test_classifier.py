@@ -1,8 +1,9 @@
 """
-تست‌های واحد که به API دیپ‌سیک وصل نمی‌شوند (آفلاین).
-منطق normalize، بارگذاری taxonomy، اعتبارسنجی schema، و تصمیم Ambiguity-Driven را می‌سنجند.
+Unit tests that do not connect to the DeepSeek API (offline).
+They check normalize logic, taxonomy loading, schema validation, and the
+Ambiguity-Driven decision.
 
-اجرا:  python -m pytest -q
+Run:  python -m pytest -q
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ TAX = load_taxonomy()
 # ---------- normalize ----------
 def test_normalize_unifies_arabic_and_zwnj():
     assert normalize("تایم‌شیت") == normalize("تایم شیت")
-    assert normalize("كارمند") == normalize("کارمند")  # kaf عربی -> فارسی
+    assert normalize("كارمند") == normalize("کارمند")  # Arabic kaf -> Persian
     assert normalize("۱۲۳") == "123"
 
 
@@ -32,7 +33,7 @@ def test_contains_cue_half_space():
 
 # ---------- schema validation ----------
 def test_parse_coerces_messy_shapes():
-    # evidence به‌صورت رشته، و candidates به‌صورت dict تکی (نه لیست)
+    # evidence as a string, and candidates as a single dict (not a list)
     raw = {
         "layers": {
             "layer1": {"candidates": {"label": "incident", "evidence": "خطا"}, "needs_clarification": False},
@@ -47,7 +48,7 @@ def test_parse_coerces_messy_shapes():
 
 def test_parse_never_crashes_on_garbage():
     out = parse_and_validate({"unexpected": 123}, TAX)
-    # هر لایه باید معتبر و مبهم باشد (نه crash)
+    # every layer must be valid and ambiguous (not crash)
     for layer in TAX.layers:
         assert out.layers[layer.id].needs_clarification is True
 
@@ -63,7 +64,7 @@ def test_parse_drops_hallucinated_label():
         "reasoning": "r",
     }
     out = parse_and_validate(raw, TAX)
-    # برچسب جعلی حذف و لایه مبهم می‌شود (fallback به همهٔ برچسب‌ها)
+    # the fake label is dropped and the layer becomes ambiguous (fallback to all labels)
     assert out.layers["layer1"].needs_clarification is True
     assert all(c.label in TAX.get_layer("layer1").label_ids for c in out.layers["layer1"].candidates)
 
@@ -97,7 +98,7 @@ def test_decide_asks_when_no_evidence_and_budget_left():
 
 
 def test_decide_fallback_when_budget_exhausted():
-    out = _output("incident", ["خطا"], "erp", [])  # لایه ۲ مبهم
+    out = _output("incident", ["خطا"], "erp", [])  # layer 2 is ambiguous
     d = decide(out, TAX, questions_asked=2, max_questions=2)
     assert d.action == Action.FALLBACK
     assert d.needs_review is True
