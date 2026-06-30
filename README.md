@@ -111,17 +111,18 @@ curl -X POST http://127.0.0.1:8000/classify/start \
 هم اختلاف نداشته باشند: `src/reporting/cost.py` (هزینه)، `src/reporting/metrics.py`
 (دقت)، و دیزاین‌سیستمِ مشترکِ HTML در `src/reporting/html_ui.py`.
 
-**۱) گزارشِ ترکیبیِ اجرایی «Model Performance & Cost»** (`scripts/perf_report.py`) —
-یک فایلِ HTMLِ خودبسنده با ۵ بخش: خلاصهٔ مدیریتی (با وضعیتِ pass/fail در برابر هدف)،
-آمادگیِ عملیاتی (auto در برابر needs-review)، Precision/Recall/F1 هر کلاس،
-ماتریسِ درهم‌ریختگیِ بصری، و بخشِ کاملِ هزینه/توکن. (نیازمندِ DEEPSEEK_API_KEY)
+دقت و هزینه **جدا از هم** خروجی می‌گیرند — دو HTML و دو تصویر.
+
+**۱) گزارشِ دقت** (`scripts/perf_report.py`) — یک HTMLِ خودبسنده با ۴ بخش: خلاصهٔ
+مدیریتی، آمادگیِ عملیاتی (auto در برابر needs-review)، Precision/Recall/F1 هر کلاس،
+و ماتریسِ درهم‌ریختگیِ بصری. (نیازمندِ DEEPSEEK_API_KEY)
 
 ```bash
 python -m scripts.perf_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
-  --target 0.90 --out performance_report.html --errors errors.jsonl
+  --out accuracy_report.html --errors errors.jsonl
 ```
 
-**۲) گزارشِ هزینهٔ مستقل** (`scripts/cost_report.py`) — فقط هزینه/توکن. مزیتِ مهم:
+**۲) گزارشِ هزینه/توکن** (`scripts/cost_report.py`) — یک HTMLِ مستقل. مزیتِ مهم:
 از لاگِ تولید **بدونِ نیاز به API** هم ساخته می‌شود:
 
 ```bash
@@ -131,23 +132,21 @@ python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_repo
 نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند
 (`--price-in`, `--price-cache`, `--price-out`؛ دلار به‌ازای هر ۱M توکن).
 
-**۳) داشبوردِ تصویری** (`scripts/report.py`) — داشبوردِ دقت + پنلِ توکن/هزینه به‌صورتِ
-یک PNGِ باکیفیت برای اسلاید.
-
 **یک اجرا → همهٔ خروجی‌ها** (Kaggle/Notebook). `evaluate_and_report` با یک اجرای
-واقعی، گزارشِ HTMLِ ترکیبی + PNG داشبورد + خطاها (JSON و Excel) را با هم می‌سازد
+واقعی، **دو HTML و دو تصویرِ جدا** (دقت و هزینه) + خطاها (JSON و Excel) را می‌سازد
 (بدونِ مصرفِ دوبارهٔ API):
 
 ```python
 from scripts.report import evaluate_and_report
-res, fig = evaluate_and_report(
+res, figs = evaluate_and_report(
     "/kaggle/working/ChatBot-v2/tests/Ticketing_DB.jsonl", frac=0.2, workers=6,
-    html_path="/kaggle/working/performance_report.html",  # گزارشِ ترکیبیِ دقت + هزینه
-    save_path="/kaggle/working/dashboard.png",            # داشبوردِ PNG
-    errors_out="/kaggle/working/errors.jsonl",            # تیکت‌های اشتباه (JSON)
-    errors_xlsx="/kaggle/working/errors.xlsx",            # تیکت‌های اشتباه (Excel)
-    out_path="/kaggle/working/preds.jsonl",               # (اختیاری) همهٔ پیش‌بینی‌ها
-    target=0.90, show=False,
+    accuracy_html="/kaggle/working/accuracy_report.html",  # گزارشِ HTMLِ دقت
+    cost_html="/kaggle/working/cost_report.html",          # گزارشِ HTMLِ هزینه/توکن
+    accuracy_png="/kaggle/working/accuracy_report.png",    # تصویرِ دقت
+    cost_png="/kaggle/working/cost_report.png",            # تصویرِ هزینه/توکن
+    errors_out="/kaggle/working/errors.jsonl",             # تیکت‌های اشتباه (JSON)
+    errors_xlsx="/kaggle/working/errors.xlsx",             # تیکت‌های اشتباه (Excel)
+    show=False,
 )
 ```
 

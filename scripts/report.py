@@ -109,8 +109,6 @@ def _draw_recall(ax, res: dict) -> None:
     for yi, r in zip(y, rows):
         ax.text(min(r[1] + 0.015, 1.0), yi, f"{r[1]*100:.1f}%  ({r[2]}/{r[3]})",
                 va="center", ha="left", fontsize=10.5, color=_INK, fontweight="bold")
-    ax.axvline(0.90, color="#94a3b8", ls="--", lw=1, zorder=2)
-    ax.text(0.90, len(rows) - 0.35, " target 90%", color="#94a3b8", fontsize=9, va="bottom")
     ax.set_xlim(0, 1.18)
     ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"], fontsize=10, color=_MUTE)
@@ -163,14 +161,9 @@ def _draw_confusion(ax, L: dict) -> None:
         s.set_visible(False)
 
 
-def _draw_cost_tokens(ax, b) -> None:
-    """نوارِ افقیِ انباشتهٔ ترکیبِ توکن: cached / uncached input + output."""
-    segs = [
-        ("Cached input", b.cache_hit_tokens, _C_HIT),
-        ("Uncached input", b.cache_miss_tokens, _C_MISS),
-        ("Output", b.completion_tokens, _C_OUT),
-    ]
-    total = b.total_tokens or 1
+def _draw_stack(ax, title: str, segs, fmt) -> None:
+    """نوارِ افقیِ انباشتهٔ عمومی با افسانهٔ خطی. segs = [(name, value, color), ...]."""
+    total = sum(max(v, 0) for _, v, _ in segs) or 1.0
     left = 0.0
     for _, val, color in segs:
         ax.barh(0, val, left=left, color=color, height=0.8, zorder=3)
@@ -178,17 +171,32 @@ def _draw_cost_tokens(ax, b) -> None:
     ax.set_xlim(0, total)
     ax.set_ylim(-2.95, 0.6)
     ax.axis("off")
-    ax.set_title("Token composition  ·  cached vs uncached input + output",
-                 fontsize=13, fontweight="bold", color=_INK, loc="left", pad=10)
-    # افسانه با شمارش و درصد — هر آیتم در یک خطِ جدا (بدونِ هم‌پوشانی)
+    ax.set_title(title, fontsize=13, fontweight="bold", color=_INK, loc="left", pad=10)
+    # افسانه — هر آیتم در یک خطِ جدا (بدونِ هم‌پوشانی)
     for i, (name, val, color) in enumerate(segs):
-        pct = val / total * 100
         y = -0.95 - i * 0.62
         ax.scatter([total * 0.006], [y], s=70, marker="s", color=color, zorder=4)
-        ax.text(total * 0.02, y, f"{name}", va="center", ha="left",
-                fontsize=10.5, color=_MUTE)
-        ax.text(total * 0.42, y, f"{val:,.0f}  ·  {pct:.1f}%", va="center", ha="left",
-                fontsize=10.5, color=_INK, fontweight="bold")
+        ax.text(total * 0.02, y, f"{name}", va="center", ha="left", fontsize=10.5, color=_MUTE)
+        ax.text(total * 0.42, y, f"{fmt(val)}  ·  {val / total * 100:.1f}%",
+                va="center", ha="left", fontsize=10.5, color=_INK, fontweight="bold")
+
+
+def _draw_cost_tokens(ax, b) -> None:
+    """نوارِ ترکیبِ توکن: cached / uncached input + output."""
+    _draw_stack(ax, "Token composition  ·  cached vs uncached input + output", [
+        ("Cached input", b.cache_hit_tokens, _C_HIT),
+        ("Uncached input", b.cache_miss_tokens, _C_MISS),
+        ("Output", b.completion_tokens, _C_OUT),
+    ], fmt=lambda v: f"{v:,.0f}")
+
+
+def _draw_cost_components(ax, b) -> None:
+    """نوارِ ترکیبِ هزینه ($): سهمِ هر جزء از کلِ هزینه."""
+    _draw_stack(ax, "Cost by component  ·  where the money goes", [
+        ("Cached input", b.cost_cache_hit, _C_HIT),
+        ("Uncached input", b.cost_cache_miss, _C_MISS),
+        ("Output", b.cost_output, _C_OUT),
+    ], fmt=lambda v: f"${v:,.4f}")
 
 
 def _tiles(ax, items, ncol: int) -> None:
@@ -216,61 +224,71 @@ def _tiles(ax, items, ncol: int) -> None:
                 fontsize=19, color=accent, fontweight="bold")
 
 
-def _draw_cost_kpis(ax, b) -> None:
-    save_label = f"Saved by cache  (−{b.cache_savings_pct*100:.0f}%)"
-    _tiles(
-        ax,
-        [
-            ("Total cost", f"${b.cost_total:,.2f}", _C_OUT),
-            ("Cost / ticket", f"${b.cost_per_ticket:.4f}", _C_HIT),
-            ("Cache-hit rate", f"{b.cache_hit_rate*100:.0f}%", _C_MISS),
-            (save_label, f"${b.cache_savings:,.2f}", _C_SAVE),
-        ],
-        ncol=2,
-    )
-
-
-def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.0028, 0.28)):
-    layers = res["layers"]
-    b = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
-
-    fig = plt.figure(figsize=(13.0, 15.8), facecolor="white")
-    gs = fig.add_gridspec(
-        4, 1, height_ratios=[0.70, 1.05, 1.12, 0.74], hspace=0.55,
-        left=0.07, right=0.95, top=0.885, bottom=0.055,
-    )
-
-    # سرتیتر
-    fig.text(0.07, 0.952, "Ticket Classification — Accuracy & Cost Report",
-             fontsize=22, fontweight="bold", color=_INK)
+def _header(fig, title: str, res: dict, dataset_name: str) -> None:
+    fig.text(0.07, 0.952, title, fontsize=22, fontweight="bold", color=_INK)
     sub = f"Model: {res.get('model') or '—'}    ·    Tickets evaluated: {res['n']}"
     if dataset_name:
         sub += f"    ·    Dataset: {dataset_name}"
     sub += f"    ·    {date.today().isoformat()}"
     fig.text(0.07, 0.917, sub, fontsize=11.5, color=_MUTE)
 
+
+def render_accuracy_dashboard(res: dict, *, dataset_name: str = ""):
+    """تصویرِ مستقلِ دقت: کارت‌های KPI + recall هر کلاس + ماتریسِ درهم‌ریختگی."""
+    layers = res["layers"]
+    fig = plt.figure(figsize=(13.0, 12.8), facecolor="white")
+    gs = fig.add_gridspec(
+        3, 1, height_ratios=[0.74, 1.12, 1.20], hspace=0.46,
+        left=0.07, right=0.95, top=0.885, bottom=0.11,
+    )
+    _header(fig, "Ticket Classification — Accuracy Report", res, dataset_name)
+
     _draw_kpis(fig.add_subplot(gs[0]), res)
     _draw_recall(fig.add_subplot(gs[1]), res)
-
     sub_gs = gs[2].subgridspec(1, len(layers), wspace=0.32)
     for i, L in enumerate(layers):
         _draw_confusion(fig.add_subplot(sub_gs[0, i]), L)
 
-    # ردیفِ هزینه/توکن: چپ = ترکیبِ توکن، راست = کاشی‌های KPIِ هزینه
-    cost_gs = gs[3].subgridspec(1, 2, width_ratios=[1.25, 1.0], wspace=0.16)
-    _draw_cost_tokens(fig.add_subplot(cost_gs[0, 0]), b)
-    _draw_cost_kpis(fig.add_subplot(cost_gs[0, 1]), b)
+    foot = (
+        "Single-shot evaluation (no clarifying questions)   ·   "
+        "Overall = both layers correct   ·   recall = share of each true class predicted correctly   ·   "
+        f"avg latency {res['latency_ms_avg']:.0f} ms/ticket"
+    )
+    fig.text(0.07, 0.035, foot, fontsize=9.5, color=_MUTE)
+    return fig
 
-    # نوار پایین — مفروضاتِ قیمت
+
+def render_cost_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.0028, 0.28)):
+    """تصویرِ مستقلِ هزینه/توکن: کارت‌های KPI + ترکیبِ توکن + ترکیبِ هزینه."""
+    b = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
+    fig = plt.figure(figsize=(13.0, 9.6), facecolor="white")
+    gs = fig.add_gridspec(
+        3, 1, height_ratios=[0.74, 0.62, 0.62], hspace=0.55,
+        left=0.07, right=0.95, top=0.865, bottom=0.085,
+    )
+    _header(fig, "Ticket Classification — Token & Cost Report", res, dataset_name)
+
+    _tiles(
+        fig.add_subplot(gs[0]),
+        [
+            ("Total cost", f"${b.cost_total:,.2f}", _C_OUT),
+            ("Cost / ticket", f"${b.cost_per_ticket:.4f}", _C_HIT),
+            ("Cache-hit rate", f"{b.cache_hit_rate*100:.0f}%", _C_MISS),
+            (f"Saved by cache  (−{b.cache_savings_pct*100:.0f}%)", f"${b.cache_savings:,.2f}", _C_SAVE),
+        ],
+        ncol=4,
+    )
+    _draw_cost_tokens(fig.add_subplot(gs[1]), b)
+    _draw_cost_components(fig.add_subplot(gs[2]), b)
+
     p = b.pricing
     foot = (
-        f"Single-shot evaluation (no clarifying questions)   ·   "
         f"tokens: input {b.prompt_tokens:,} (hit {b.cache_hit_tokens:,} / miss {b.cache_miss_tokens:,}) / "
         f"output {b.completion_tokens:,}   ·   "
         f"pricing /1M: in ${p.input_per_m} · hit ${p.cache_hit_per_m} · out ${p.output_per_m} "
-        f"(verify current pricing)   ·   avg latency {res['latency_ms_avg']:.0f} ms/ticket"
+        f"(verify current pricing)   ·   {b.n_tickets:,} tickets"
     )
-    fig.text(0.07, 0.022, foot, fontsize=9.5, color=_MUTE)
+    fig.text(0.07, 0.03, foot, fontsize=9.5, color=_MUTE)
     return fig
 
 
@@ -285,23 +303,26 @@ def evaluate_and_report(
     out_path=None,
     errors_out=None,
     errors_xlsx=None,
-    save_path=None,
-    html_path=None,
-    target=0.90,
+    accuracy_html=None,
+    cost_html=None,
+    accuracy_png=None,
+    cost_png=None,
     dataset_name=None,
     prices=(0.14, 0.0028, 0.28),
     show=True,
 ):
     """
-    یک اجرای واقعی → همهٔ خروجی‌ها (بدونِ مصرفِ دوبارهٔ API). خروجی: (res, fig).
+    یک اجرای واقعی → همهٔ خروجی‌ها (بدونِ مصرفِ دوبارهٔ API). خروجی: (res, figs).
+    `figs` یک dict است: {"accuracy": Figure|None, "cost": Figure|None}.
 
-    آرگومان‌های ذخیره‌سازی (هرکدام داده شود نوشته می‌شود):
-      • out_path    : همهٔ پیش‌بینی‌ها (JSONL)
-      • errors_out  : فقط تیکت‌های اشتباه + متن (JSONL)
-      • errors_xlsx : همان تیکت‌های اشتباه به‌صورتِ Excel (.xlsx)
-      • save_path   : داشبوردِ دقت+هزینه (PNG)
-      • html_path   : گزارشِ HTMLِ ترکیبیِ اجرایی (عملکرد + هزینه در یک فایل)
-      • target      : آستانهٔ عبور دقت برای نشانِ pass/fail (۰..۱)
+    دقت و هزینه **جدا از هم** خروجی می‌گیرند — دو HTML و دو تصویر:
+      • accuracy_html : گزارشِ HTMLِ دقت (خلاصهٔ مدیریتی، آمادگیِ عملیاتی، P/R/F1، heatmap)
+      • cost_html     : گزارشِ HTMLِ هزینه/توکن
+      • accuracy_png  : داشبوردِ تصویریِ دقت
+      • cost_png      : داشبوردِ تصویریِ هزینه/توکن
+      • errors_out    : تیکت‌های اشتباه + متن (JSON)
+      • errors_xlsx   : همان تیکت‌های اشتباه (Excel)
+      • out_path      : (اختیاری) همهٔ پیش‌بینی‌ها (JSONL)
     """
     from pathlib import Path
 
@@ -315,47 +336,69 @@ def evaluate_and_report(
         out_path=out_path, errors_out=eff_errors_out,
     )
     name = dataset_name or str(data_path)
+    short = Path(name).name
 
-    # خروجیِ Excelِ تیکت‌های اشتباه
+    # خروجیِ Excelِ تیکت‌های اشتباه (در کنارِ همان JSON)
     if errors_xlsx and eff_errors_out and Path(eff_errors_out).exists():
         from src.reporting.errors_export import jsonl_to_xlsx
 
         jsonl_to_xlsx(eff_errors_out, errors_xlsx)
         print("saved:", errors_xlsx)
 
-    fig = render_dashboard(res, dataset_name=name, prices=prices)
-    if save_path:
-        fig.savefig(save_path, dpi=160, bbox_inches="tight", facecolor="white")
-        print("saved:", save_path)
-    if html_path:
+    figs = {"accuracy": None, "cost": None}
+
+    # --- تصاویرِ جدا ---
+    if accuracy_png:
+        figs["accuracy"] = render_accuracy_dashboard(res, dataset_name=name)
+        figs["accuracy"].savefig(accuracy_png, dpi=160, bbox_inches="tight", facecolor="white")
+        print("saved:", accuracy_png)
+    if cost_png:
+        figs["cost"] = render_cost_dashboard(res, dataset_name=name, prices=prices)
+        figs["cost"].savefig(cost_png, dpi=160, bbox_inches="tight", facecolor="white")
+        print("saved:", cost_png)
+
+    # --- HTMLهای جدا ---
+    if accuracy_html:
         from scripts.perf_report import render_report  # importِ تنبل
 
-        Path(html_path).write_text(
-            render_report(res, pricing=Pricing.from_tuple(prices), target=target,
-                          dataset_name=Path(name).name),
-            encoding="utf-8",
-        )
-        print("saved:", html_path)
+        Path(accuracy_html).write_text(
+            render_report(res, dataset_name=short), encoding="utf-8")
+        print("saved:", accuracy_html)
+    if cost_html:
+        from scripts.cost_report import render_html  # importِ تنبل
+
+        breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
+        Path(cost_html).write_text(
+            render_html(breakdown, dataset_name=short), encoding="utf-8")
+        print("saved:", cost_html)
+
     if show:
         plt.show()
     print_text_report(res, *prices)
-    return res, fig
+    return res, figs
 
 
 if __name__ == "__main__":
     import argparse
 
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="تولیدِ گزارش‌های جدای دقت و هزینه (PNG و HTML).")
     ap.add_argument("data_path")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--balanced", type=int, default=None)
     ap.add_argument("--frac", type=float, default=None, help="fraction per combo, e.g. 0.2")
+    ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--workers", type=int, default=4)
-    ap.add_argument("--out", default=None)
-    ap.add_argument("--errors", default=None, help="ذخیرهٔ تیکت‌های اشتباه + متن (JSONL)")
-    ap.add_argument("--save", default="accuracy_report.png")
+    ap.add_argument("--out", default=None, help="همهٔ پیش‌بینی‌ها (JSONL)")
+    ap.add_argument("--errors", default="errors.jsonl", help="تیکت‌های اشتباه (JSON)")
+    ap.add_argument("--errors-xlsx", default="errors.xlsx", help="تیکت‌های اشتباه (Excel)")
+    ap.add_argument("--accuracy-png", default="accuracy_report.png")
+    ap.add_argument("--cost-png", default="cost_report.png")
+    ap.add_argument("--accuracy-html", default="accuracy_report.html")
+    ap.add_argument("--cost-html", default="cost_report.html")
     a = ap.parse_args()
     evaluate_and_report(
-        a.data_path, limit=a.limit, balanced=a.balanced, frac=a.frac, workers=a.workers,
-        out_path=a.out, errors_out=a.errors, save_path=a.save, show=False,
+        a.data_path, limit=a.limit, balanced=a.balanced, frac=a.frac, seed=a.seed,
+        workers=a.workers, out_path=a.out, errors_out=a.errors, errors_xlsx=a.errors_xlsx,
+        accuracy_png=a.accuracy_png, cost_png=a.cost_png,
+        accuracy_html=a.accuracy_html, cost_html=a.cost_html, show=False,
     )
