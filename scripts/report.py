@@ -25,13 +25,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import FancyBboxPatch
 
-from scripts.eval_incdb import compute_cost, print_text_report, run_evaluation
+from scripts.eval_incdb import print_text_report, run_evaluation
+from src.reporting.cost import Pricing, breakdown_from_eval
 
 # پالت
 _INK = "#0f172a"
 _MUTE = "#64748b"
 _GRID = "#e2e8f0"
 _LAYER_COLORS = ["#4f46e5", "#0d9488", "#b45309", "#9333ea"]  # برای لایه‌های ۱،۲،…
+
+# رنگِ اجزای هزینه (هم‌خوان با گزارشِ HTML)
+_C_HIT = "#0d9488"     # ورودیِ cache-hit
+_C_MISS = "#d97706"    # ورودیِ cache-miss
+_C_OUT = "#4f46e5"     # خروجی/completion
+_C_SAVE = "#16a34a"    # صرفه‌جویی
 
 
 def _grade(v: float) -> str:
@@ -156,22 +163,91 @@ def _draw_confusion(ax, L: dict) -> None:
         s.set_visible(False)
 
 
-def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.27, 0.07, 1.10)):
+def _draw_cost_tokens(ax, b) -> None:
+    """نوارِ افقیِ انباشتهٔ ترکیبِ توکن: cached / uncached input + output."""
+    segs = [
+        ("Cached input", b.cache_hit_tokens, _C_HIT),
+        ("Uncached input", b.cache_miss_tokens, _C_MISS),
+        ("Output", b.completion_tokens, _C_OUT),
+    ]
+    total = b.total_tokens or 1
+    left = 0.0
+    for _, val, color in segs:
+        ax.barh(0, val, left=left, color=color, height=0.8, zorder=3)
+        left += val
+    ax.set_xlim(0, total)
+    ax.set_ylim(-2.95, 0.6)
+    ax.axis("off")
+    ax.set_title("Token composition  ·  cached vs uncached input + output",
+                 fontsize=13, fontweight="bold", color=_INK, loc="left", pad=10)
+    # افسانه با شمارش و درصد — هر آیتم در یک خطِ جدا (بدونِ هم‌پوشانی)
+    for i, (name, val, color) in enumerate(segs):
+        pct = val / total * 100
+        y = -0.95 - i * 0.62
+        ax.scatter([total * 0.006], [y], s=70, marker="s", color=color, zorder=4)
+        ax.text(total * 0.02, y, f"{name}", va="center", ha="left",
+                fontsize=10.5, color=_MUTE)
+        ax.text(total * 0.42, y, f"{val:,.0f}  ·  {pct:.1f}%", va="center", ha="left",
+                fontsize=10.5, color=_INK, fontweight="bold")
+
+
+def _tiles(ax, items, ncol: int) -> None:
+    """شبکهٔ کاشی‌های KPI روی یک محور. items = [(label, value, accent), ...]."""
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+    nrow = -(-len(items) // ncol)  # ceil
+    gx, gy = 0.035, 0.12
+    w = (1 - gx * (ncol - 1)) / ncol
+    h = (1 - gy * (nrow - 1)) / nrow
+    for idx, (label, val, accent) in enumerate(items):
+        r, c = divmod(idx, ncol)
+        x = c * (w + gx)
+        y = 1 - (r + 1) * h - r * gy
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, y), w, h, boxstyle="round,pad=0,rounding_size=0.05",
+                linewidth=1.4, edgecolor=accent, facecolor=_tint(accent, 0.13), mutation_aspect=0.42,
+            )
+        )
+        ax.text(x + w / 2, y + h * 0.70, label, ha="center", va="center",
+                fontsize=10, color=_INK, fontweight="bold")
+        ax.text(x + w / 2, y + h * 0.33, val, ha="center", va="center",
+                fontsize=19, color=accent, fontweight="bold")
+
+
+def _draw_cost_kpis(ax, b) -> None:
+    save_label = f"Saved by cache  (−{b.cache_savings_pct*100:.0f}%)"
+    _tiles(
+        ax,
+        [
+            ("Total cost", f"${b.cost_total:,.2f}", _C_OUT),
+            ("Cost / ticket", f"${b.cost_per_ticket:.4f}", _C_HIT),
+            ("Cache-hit rate", f"{b.cache_hit_rate*100:.0f}%", _C_MISS),
+            (save_label, f"${b.cache_savings:,.2f}", _C_SAVE),
+        ],
+        ncol=2,
+    )
+
+
+def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.0028, 0.28)):
     layers = res["layers"]
-    fig = plt.figure(figsize=(13.0, 13.6), facecolor="white")
+    b = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
+
+    fig = plt.figure(figsize=(13.0, 15.8), facecolor="white")
     gs = fig.add_gridspec(
-        3, 1, height_ratios=[0.78, 1.18, 1.25], hspace=0.42,
-        left=0.07, right=0.95, top=0.86, bottom=0.11,
+        4, 1, height_ratios=[0.70, 1.05, 1.12, 0.74], hspace=0.55,
+        left=0.07, right=0.95, top=0.885, bottom=0.055,
     )
 
     # سرتیتر
-    fig.text(0.07, 0.945, "Ticket Classification — Accuracy Report",
+    fig.text(0.07, 0.952, "Ticket Classification — Accuracy & Cost Report",
              fontsize=22, fontweight="bold", color=_INK)
     sub = f"Model: {res.get('model') or '—'}    ·    Tickets evaluated: {res['n']}"
     if dataset_name:
         sub += f"    ·    Dataset: {dataset_name}"
     sub += f"    ·    {date.today().isoformat()}"
-    fig.text(0.07, 0.905, sub, fontsize=11.5, color=_MUTE)
+    fig.text(0.07, 0.917, sub, fontsize=11.5, color=_MUTE)
 
     _draw_kpis(fig.add_subplot(gs[0]), res)
     _draw_recall(fig.add_subplot(gs[1]), res)
@@ -180,16 +256,21 @@ def render_dashboard(res: dict, *, dataset_name: str = "", prices=(0.27, 0.07, 1
     for i, L in enumerate(layers):
         _draw_confusion(fig.add_subplot(sub_gs[0, i]), L)
 
-    # نوار پایین
-    t = res["tokens"]
-    cost = compute_cost(t, *prices)
+    # ردیفِ هزینه/توکن: چپ = ترکیبِ توکن، راست = کاشی‌های KPIِ هزینه
+    cost_gs = gs[3].subgridspec(1, 2, width_ratios=[1.25, 1.0], wspace=0.16)
+    _draw_cost_tokens(fig.add_subplot(cost_gs[0, 0]), b)
+    _draw_cost_kpis(fig.add_subplot(cost_gs[0, 1]), b)
+
+    # نوار پایین — مفروضاتِ قیمت
+    p = b.pricing
     foot = (
         f"Single-shot evaluation (no clarifying questions)   ·   "
-        f"tokens: prompt {t.get('prompt',0):,} / completion {t.get('completion',0):,}   ·   "
-        f"est. cost ${cost:.3f} (verify current pricing)   ·   "
-        f"avg latency {res['latency_ms_avg']:.0f} ms/ticket"
+        f"tokens: input {b.prompt_tokens:,} (hit {b.cache_hit_tokens:,} / miss {b.cache_miss_tokens:,}) / "
+        f"output {b.completion_tokens:,}   ·   "
+        f"pricing /1M: in ${p.input_per_m} · hit ${p.cache_hit_per_m} · out ${p.output_per_m} "
+        f"(verify current pricing)   ·   avg latency {res['latency_ms_avg']:.0f} ms/ticket"
     )
-    fig.text(0.07, 0.035, foot, fontsize=9.5, color=_MUTE)
+    fig.text(0.07, 0.022, foot, fontsize=9.5, color=_MUTE)
     return fig
 
 

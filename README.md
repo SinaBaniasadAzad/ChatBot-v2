@@ -105,6 +105,37 @@ curl -X POST http://127.0.0.1:8000/classify/start \
 
 ---
 
+## گزارشِ هزینه و توکن (برای ارائه به مدیریت)
+
+اعدادِ توکن از مصرفِ **واقعی** می‌آیند (DeepSeek سه‌نرخی است: ورودیِ cache-hit،
+ورودیِ cache-miss، و خروجی). همهٔ خروجی‌ها از یک موتورِ واحد تغذیه می‌شوند:
+`src/reporting/cost.py` تا اعداد هیچ‌وقت با هم اختلاف نداشته باشند.
+
+**۱) گزارشِ HTMLِ مستقل** (`scripts/cost_report.py`) — تک‌فایل، آمادهٔ ارسال یا
+Print → PDF. کارت‌های KPI، ترکیبِ توکن، تفکیکِ هزینه، صرفه‌جوییِ کش، اقتصادِ واحد،
+و برون‌یابیِ هزینه در مقیاس:
+
+```bash
+# الف) از لاگِ تولید — بدونِ نیاز به API
+python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
+
+# ب) از اجرای واقعیِ مدل روی دیتاست — نیازمندِ DEEPSEEK_API_KEY
+python -m scripts.cost_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
+  --out cost_report.html
+```
+
+نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند
+(`--price-in`, `--price-cache`, `--price-out`؛ دلار به‌ازای هر ۱M توکن).
+
+**۲) داشبوردِ تصویری** (`scripts/report.py`) — همان داشبوردِ دقت که حالا یک
+پنلِ واقعیِ توکن/هزینه هم دارد و یک PNGِ باکیفیت برای اسلاید می‌سازد:
+
+```bash
+python -m scripts.report tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --save report.png
+```
+
+---
+
 ## گام‌های بعدی (پیشنهاد مهندسی)
 1. **Gold Set:** ۱۵۰–۲۰۰ تیکت دستی‌تأییدشده بسازید (برچسب خام Key/Application نویزی است)
    و با `scripts/evaluate.py` دقت واقعی را اندازه بگیرید.
