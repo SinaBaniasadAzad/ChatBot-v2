@@ -134,6 +134,21 @@ python -m scripts.cost_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
 python -m scripts.report tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --save report.png
 ```
 
+**یک اجرا → همهٔ خروجی‌ها** (Kaggle/Notebook). `evaluate_and_report` با یک اجرای
+واقعی، PNG داشبورد + گزارشِ HTML + errors را با هم می‌سازد (بدونِ مصرفِ دوبارهٔ API):
+
+```python
+from scripts.report import evaluate_and_report
+res, fig = evaluate_and_report(
+    "/kaggle/working/ChatBot-v2/tests/Ticketing_DB.jsonl", frac=0.2, workers=6,
+    save_path="/kaggle/working/accuracy_report.png",   # داشبوردِ دقت+هزینه (PNG)
+    html_path="/kaggle/working/cost_report.html",      # گزارشِ HTMLِ هزینه/توکن
+    errors_out="/kaggle/working/errors.jsonl",         # تیکت‌های اشتباه + متن
+    out_path="/kaggle/working/preds.jsonl",            # (اختیاری) همهٔ پیش‌بینی‌ها
+    show=False,
+)
+```
+
 ---
 
 ## گام‌های بعدی (پیشنهاد مهندسی)

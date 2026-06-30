@@ -285,19 +285,40 @@ def evaluate_and_report(
     out_path=None,
     errors_out=None,
     save_path=None,
+    html_path=None,
     dataset_name=None,
     prices=(0.14, 0.0028, 0.28),
     show=True,
 ):
-    """اجرا + رندرِ داشبورد. خروجی: (res, fig)."""
+    """
+    یک اجرای واقعی → همهٔ خروجی‌ها (بدونِ مصرفِ دوبارهٔ API). خروجی: (res, fig).
+
+    آرگومان‌های ذخیره‌سازی (هرکدام داده شود نوشته می‌شود):
+      • out_path    : همهٔ پیش‌بینی‌ها (JSONL)
+      • errors_out  : فقط تیکت‌های اشتباه + متن (JSONL)
+      • save_path   : داشبوردِ دقت+هزینه (PNG)
+      • html_path   : گزارشِ HTMLِ مستقلِ هزینه/توکن
+    """
     res = run_evaluation(
         data_path, limit=limit, balanced=balanced, frac=frac, seed=seed, workers=workers,
         out_path=out_path, errors_out=errors_out,
     )
-    fig = render_dashboard(res, dataset_name=dataset_name or str(data_path), prices=prices)
+    name = dataset_name or str(data_path)
+    fig = render_dashboard(res, dataset_name=name, prices=prices)
     if save_path:
         fig.savefig(save_path, dpi=160, bbox_inches="tight", facecolor="white")
         print("saved:", save_path)
+    if html_path:
+        # importِ تنبل تا وابستگیِ متقابل و بارِ اضافه نباشد.
+        from pathlib import Path
+
+        from scripts.cost_report import render_html
+
+        breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
+        Path(html_path).write_text(
+            render_html(breakdown, dataset_name=Path(name).name), encoding="utf-8"
+        )
+        print("saved:", html_path)
     if show:
         plt.show()
     print_text_report(res, *prices)
