@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import pydantic, yaml, dotenv; print\\('deps ok'\\)\")",
+      "Bash(python -m pip install --quiet pydantic PyYAML python-dotenv pytest)",
+      "Read(///d/ChatBot//**)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(python -m pip install --quiet openai)"
+    ]
+  }
+}
