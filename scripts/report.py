@@ -284,8 +284,10 @@ def evaluate_and_report(
     workers=4,
     out_path=None,
     errors_out=None,
+    errors_xlsx=None,
     save_path=None,
     html_path=None,
+    target=0.90,
     dataset_name=None,
     prices=(0.14, 0.0028, 0.28),
     show=True,
@@ -296,27 +298,42 @@ def evaluate_and_report(
     آرگومان‌های ذخیره‌سازی (هرکدام داده شود نوشته می‌شود):
       • out_path    : همهٔ پیش‌بینی‌ها (JSONL)
       • errors_out  : فقط تیکت‌های اشتباه + متن (JSONL)
+      • errors_xlsx : همان تیکت‌های اشتباه به‌صورتِ Excel (.xlsx)
       • save_path   : داشبوردِ دقت+هزینه (PNG)
-      • html_path   : گزارشِ HTMLِ مستقلِ هزینه/توکن
+      • html_path   : گزارشِ HTMLِ ترکیبیِ اجرایی (عملکرد + هزینه در یک فایل)
+      • target      : آستانهٔ عبور دقت برای نشانِ pass/fail (۰..۱)
     """
+    from pathlib import Path
+
+    # اگر فقط Excel خواسته شده، یک JSONLِ کناری هم ساخته می‌شود (منبعِ تبدیل).
+    eff_errors_out = errors_out
+    if errors_xlsx and not eff_errors_out:
+        eff_errors_out = str(Path(errors_xlsx).with_suffix(".jsonl"))
+
     res = run_evaluation(
         data_path, limit=limit, balanced=balanced, frac=frac, seed=seed, workers=workers,
-        out_path=out_path, errors_out=errors_out,
+        out_path=out_path, errors_out=eff_errors_out,
     )
     name = dataset_name or str(data_path)
+
+    # خروجیِ Excelِ تیکت‌های اشتباه
+    if errors_xlsx and eff_errors_out and Path(eff_errors_out).exists():
+        from src.reporting.errors_export import jsonl_to_xlsx
+
+        jsonl_to_xlsx(eff_errors_out, errors_xlsx)
+        print("saved:", errors_xlsx)
+
     fig = render_dashboard(res, dataset_name=name, prices=prices)
     if save_path:
         fig.savefig(save_path, dpi=160, bbox_inches="tight", facecolor="white")
         print("saved:", save_path)
     if html_path:
-        # importِ تنبل تا وابستگیِ متقابل و بارِ اضافه نباشد.
-        from pathlib import Path
+        from scripts.perf_report import render_report  # importِ تنبل
 
-        from scripts.cost_report import render_html
-
-        breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
         Path(html_path).write_text(
-            render_html(breakdown, dataset_name=Path(name).name), encoding="utf-8"
+            render_report(res, pricing=Pricing.from_tuple(prices), target=target,
+                          dataset_name=Path(name).name),
+            encoding="utf-8",
         )
         print("saved:", html_path)
     if show:

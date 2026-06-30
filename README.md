@@ -105,47 +105,49 @@ curl -X POST http://127.0.0.1:8000/classify/start \
 
 ---
 
-## گزارشِ هزینه و توکن (برای ارائه به مدیریت)
+## گزارش‌های ارائه‌محور (برای مدیریت)
 
-اعدادِ توکن از مصرفِ **واقعی** می‌آیند (DeepSeek سه‌نرخی است: ورودیِ cache-hit،
-ورودیِ cache-miss، و خروجی). همهٔ خروجی‌ها از یک موتورِ واحد تغذیه می‌شوند:
-`src/reporting/cost.py` تا اعداد هیچ‌وقت با هم اختلاف نداشته باشند.
+همهٔ خروجی‌ها از **دادهٔ واقعی** و از موتورهای واحد تغذیه می‌شوند تا اعداد هیچ‌وقت با
+هم اختلاف نداشته باشند: `src/reporting/cost.py` (هزینه)، `src/reporting/metrics.py`
+(دقت)، و دیزاین‌سیستمِ مشترکِ HTML در `src/reporting/html_ui.py`.
 
-**۱) گزارشِ HTMLِ مستقل** (`scripts/cost_report.py`) — تک‌فایل، آمادهٔ ارسال یا
-Print → PDF. کارت‌های KPI، ترکیبِ توکن، تفکیکِ هزینه، صرفه‌جوییِ کش، اقتصادِ واحد،
-و برون‌یابیِ هزینه در مقیاس:
+**۱) گزارشِ ترکیبیِ اجرایی «Model Performance & Cost»** (`scripts/perf_report.py`) —
+یک فایلِ HTMLِ خودبسنده با ۵ بخش: خلاصهٔ مدیریتی (با وضعیتِ pass/fail در برابر هدف)،
+آمادگیِ عملیاتی (auto در برابر needs-review)، Precision/Recall/F1 هر کلاس،
+ماتریسِ درهم‌ریختگیِ بصری، و بخشِ کاملِ هزینه/توکن. (نیازمندِ DEEPSEEK_API_KEY)
 
 ```bash
-# الف) از لاگِ تولید — بدونِ نیاز به API
-python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
+python -m scripts.perf_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
+  --target 0.90 --out performance_report.html --errors errors.jsonl
+```
 
-# ب) از اجرای واقعیِ مدل روی دیتاست — نیازمندِ DEEPSEEK_API_KEY
-python -m scripts.cost_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
-  --out cost_report.html
+**۲) گزارشِ هزینهٔ مستقل** (`scripts/cost_report.py`) — فقط هزینه/توکن. مزیتِ مهم:
+از لاگِ تولید **بدونِ نیاز به API** هم ساخته می‌شود:
+
+```bash
+python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
 ```
 
 نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند
 (`--price-in`, `--price-cache`, `--price-out`؛ دلار به‌ازای هر ۱M توکن).
 
-**۲) داشبوردِ تصویری** (`scripts/report.py`) — همان داشبوردِ دقت که حالا یک
-پنلِ واقعیِ توکن/هزینه هم دارد و یک PNGِ باکیفیت برای اسلاید می‌سازد:
-
-```bash
-python -m scripts.report tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --save report.png
-```
+**۳) داشبوردِ تصویری** (`scripts/report.py`) — داشبوردِ دقت + پنلِ توکن/هزینه به‌صورتِ
+یک PNGِ باکیفیت برای اسلاید.
 
 **یک اجرا → همهٔ خروجی‌ها** (Kaggle/Notebook). `evaluate_and_report` با یک اجرای
-واقعی، PNG داشبورد + گزارشِ HTML + errors را با هم می‌سازد (بدونِ مصرفِ دوبارهٔ API):
+واقعی، گزارشِ HTMLِ ترکیبی + PNG داشبورد + خطاها (JSON و Excel) را با هم می‌سازد
+(بدونِ مصرفِ دوبارهٔ API):
 
 ```python
 from scripts.report import evaluate_and_report
 res, fig = evaluate_and_report(
     "/kaggle/working/ChatBot-v2/tests/Ticketing_DB.jsonl", frac=0.2, workers=6,
-    save_path="/kaggle/working/accuracy_report.png",   # داشبوردِ دقت+هزینه (PNG)
-    html_path="/kaggle/working/cost_report.html",      # گزارشِ HTMLِ هزینه/توکن
-    errors_out="/kaggle/working/errors.jsonl",         # تیکت‌های اشتباه + متن
-    out_path="/kaggle/working/preds.jsonl",            # (اختیاری) همهٔ پیش‌بینی‌ها
-    show=False,
+    html_path="/kaggle/working/performance_report.html",  # گزارشِ ترکیبیِ دقت + هزینه
+    save_path="/kaggle/working/dashboard.png",            # داشبوردِ PNG
+    errors_out="/kaggle/working/errors.jsonl",            # تیکت‌های اشتباه (JSON)
+    errors_xlsx="/kaggle/working/errors.xlsx",            # تیکت‌های اشتباه (Excel)
+    out_path="/kaggle/working/preds.jsonl",               # (اختیاری) همهٔ پیش‌بینی‌ها
+    target=0.90, show=False,
 )
 ```
 
