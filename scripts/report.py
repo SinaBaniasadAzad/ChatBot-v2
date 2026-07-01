@@ -292,8 +292,14 @@ def render_cost_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.
     return fig
 
 
-def _emit_html_pdf(html_str: str, html_path, pdf_path) -> None:
-    """از یک رشتهٔ HTML واحد، فایلِ HTML و/یا PDF می‌سازد (PDF بهترین‌کوشش)."""
+def _emit_html_pdf(html_str: str, html_path, pdf_path, fallback=None) -> None:
+    """
+    از یک رشتهٔ HTML واحد، فایلِ HTML و/یا PDF می‌سازد.
+
+    PDF با زنجیرهٔ چند‌موتوره ساخته می‌شود (Playwright/Chrome/WeasyPrint). اگر هیچ‌کدام
+    نبود و `fallback` (سازندهٔ یک Figureِ matplotlib) داده شده باشد، به‌عنوانِ آخرین راه
+    همان داشبوردِ تصویری در PDF ذخیره می‌شود تا همیشه چیزی تولید شود.
+    """
     import os
     import tempfile
     from pathlib import Path
@@ -317,8 +323,17 @@ def _emit_html_pdf(html_str: str, html_path, pdf_path) -> None:
 
         html_to_pdf(src_html, pdf_path)
         print("saved:", pdf_path)
-    except Exception as e:  # نبودِ مرورگر نباید کلِ اجرا را (که API خرج کرده) بشکند
-        print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e}")
+    except Exception as e:  # نبودِ موتور نباید کلِ اجرا (که API خرج کرده) را بشکند
+        if fallback is not None:
+            try:
+                fig = fallback()
+                fig.savefig(pdf_path, bbox_inches="tight", facecolor="white")
+                print(f"saved (matplotlib fallback): {pdf_path}")
+                print(f"   ↳ برای PDFِ عینِ HTML: pip install weasyprint  ({e})")
+            except Exception as e2:
+                print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e2}")
+        else:
+            print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e}")
     finally:
         if tmp:
             tmp.unlink(missing_ok=True)
@@ -400,12 +415,18 @@ def evaluate_and_report(
     if accuracy_html or accuracy_pdf:
         from scripts.perf_report import render_report  # importِ تنبل
 
-        _emit_html_pdf(render_report(res, dataset_name=short), accuracy_html, accuracy_pdf)
+        _emit_html_pdf(
+            render_report(res, dataset_name=short), accuracy_html, accuracy_pdf,
+            fallback=lambda: render_accuracy_dashboard(res, dataset_name=name),
+        )
     if cost_html or cost_pdf:
         from scripts.cost_report import render_html  # importِ تنبل
 
         breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
-        _emit_html_pdf(render_html(breakdown, dataset_name=short), cost_html, cost_pdf)
+        _emit_html_pdf(
+            render_html(breakdown, dataset_name=short), cost_html, cost_pdf,
+            fallback=lambda: render_cost_dashboard(res, dataset_name=name, prices=prices),
+        )
 
     if show:
         plt.show()

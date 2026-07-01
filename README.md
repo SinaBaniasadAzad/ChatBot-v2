@@ -152,9 +152,12 @@ res, figs = evaluate_and_report(
 )
 ```
 
-> **PDF** با موتورِ مرورگر ساخته می‌شود تا **دقیقاً مثلِ همان HTML** (تیره) باشد؛
-> یک‌بار: `pip install playwright && playwright install chromium`. اگر مرورگر نبود،
-> بقیهٔ خروجی‌ها ساخته می‌شوند و فقط یک هشدار چاپ می‌شود.
+> **PDF** با یک **زنجیرهٔ چند‌موتوره** ساخته می‌شود؛ خودکار هرچه در دسترس بود استفاده
+> می‌شود: `Playwright/Chromium` → مرورگرِ سیستمی → **`WeasyPrint`**. اگر مرورگر نداری
+> (مثلِ Kaggle)، ساده‌ترین راه `pip install weasyprint` است (بدونِ مرورگر، خروجیِ تیره).
+> اگر هیچ موتوری نبود، به‌جای crash، همان **داشبوردِ تصویری در PDF** ذخیره می‌شود.
+> خروجیِ همهٔ موتورها تیره است (مثلِ خودِ HTML)؛ Playwright یک صفحهٔ بلندِ پیوسته و
+> WeasyPrint صفحه‌بندیِ A4 می‌دهد.
 >
 > بخشِ **Operational readiness** فعلاً خاموش است؛ با `SHOW_OPERATIONAL_READINESS = True`
 > در `scripts/perf_report.py` برمی‌گردد.

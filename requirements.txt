@@ -11,5 +11,8 @@ matplotlib>=3.7
 numpy>=1.24
 openpyxl>=3.1
 
-# اختیاری — فقط برای خروجیِ PDF (پس از نصب، یک‌بار: playwright install chromium)
+# اختیاری — برای خروجیِ PDF (هرکدام کافی است؛ خودکار انتخاب می‌شود):
+#   weasyprint  → بدونِ مرورگر، پیشنهادی روی Kaggle
+#   playwright  → بالاترین فیدلیتی (پس از نصب: playwright install chromium)
+# weasyprint>=60
 # playwright>=1.40
