@@ -4,9 +4,11 @@
 یک سندِ خودبسنده و آمادهٔ ارائه به مدیریت که نشان می‌دهد مدل **چقدر خوب** تیکت‌ها را
 دسته‌بندی می‌کند. بخش‌ها:
   ۱) خلاصهٔ مدیریتی (دقتِ کل + دقتِ هر لایه)
-  ۲) آمادگیِ عملیاتی (auto در برابر needs-review — ترجمهٔ دقت به ارزشِ تجاری)
-  ۳) عملکردِ هر کلاس (Precision / Recall / F1)
-  ۴) ماتریسِ درهم‌ریختگیِ بصری (heatmap)
+  ۲) عملکردِ هر کلاس (Precision / Recall / F1)
+  ۳) ماتریسِ درهم‌ریختگیِ بصری (heatmap)
+
+بخشِ «آمادگیِ عملیاتی» (auto در برابر needs-review) فعلاً خاموش است؛ با سوییچِ
+`SHOW_OPERATIONAL_READINESS = True` دوباره فعال می‌شود.
 
 اعداد از موتورِ واحدِ `src/reporting/metrics.py` می‌آیند؛ این فایل فقط «نمایش» می‌دهد.
 هزینه/توکن یک گزارشِ جداست (`scripts/cost_report.py`).
@@ -27,11 +29,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.reporting import html_ui as ui  # noqa: E402
 from src.reporting import metrics as M  # noqa: E402
 
+# ★ سوییچِ بخشِ «آمادگیِ عملیاتی» (auto در برابر needs-review).
+# فعلاً طبقِ درخواست خاموش است؛ برای برگرداندن کافی است True شود (کدِ بخش دست‌نخورده مانده).
+SHOW_OPERATIONAL_READINESS = False
+
 
 # ---------------------------------------------------------------------------
 # بخش ۱ — خلاصهٔ مدیریتی
 # ---------------------------------------------------------------------------
-def _summary_section(m: M.PerfMetrics) -> str:
+def _summary_section(m: M.PerfMetrics, index: str) -> str:
     acc = m.overall_accuracy
     color = ui.grade(acc)
     overall = ui.kpi_card(
@@ -46,7 +52,7 @@ def _summary_section(m: M.PerfMetrics) -> str:
             f"{L.correct}/{L.total} · macro-F1 {ui.pct(L.macro_f1)}", ui.grade(L.accuracy),
         ))
     r = m.readiness
-    if r.has_data:
+    if SHOW_OPERATIONAL_READINESS and r.has_data:
         cards.append(ui.kpi_card(
             "Auto-classified", ui.pct(r.auto_coverage),
             f"at {ui.pct(r.auto_accuracy)} accuracy", ui.TEAL,
@@ -55,13 +61,13 @@ def _summary_section(m: M.PerfMetrics) -> str:
         cards.append(ui.kpi_card("Avg latency", f"{m.latency_ms_avg:,.0f} ms", "per ticket", ui.SLATE))
 
     return ui.section("Executive summary", f'<div class="grid k4">{"".join(cards)}</div>',
-                      index="1", accent=color)
+                      index=index, accent=color)
 
 
 # ---------------------------------------------------------------------------
 # بخش ۲ — آمادگیِ عملیاتی
 # ---------------------------------------------------------------------------
-def _readiness_section(m: M.PerfMetrics) -> str:
+def _readiness_section(m: M.PerfMetrics, index: str) -> str:
     r = m.readiness
     if not r.has_data:
         return ""
@@ -86,13 +92,13 @@ def _readiness_section(m: M.PerfMetrics) -> str:
                     f"{r.review_correct}/{r.review_total} correct", ui.SLATE),
     ])
     inner = workload + f'<div class="grid k4 mt">{tiles}</div>'
-    return ui.section("Operational readiness", inner, index="2", accent=ui.GREEN)
+    return ui.section("Operational readiness", inner, index=index, accent=ui.GREEN)
 
 
 # ---------------------------------------------------------------------------
 # بخش ۳ — عملکردِ هر کلاس (Precision / Recall / F1)
 # ---------------------------------------------------------------------------
-def _per_class_section(m: M.PerfMetrics) -> str:
+def _per_class_section(m: M.PerfMetrics, index: str) -> str:
     panels = []
     for L in m.layers:
         rows = []
@@ -109,19 +115,19 @@ def _per_class_section(m: M.PerfMetrics) -> str:
                        right_from=1, total_row=total_row)
         panels.append(ui.panel(f"{L.name}  ·  per-class metrics", tbl, accent=ui.VIOLET))
     return ui.section("Per-class performance", '<div class="grid mt" style="gap:16px">'
-                      + "".join(panels) + "</div>", index="3", accent=ui.VIOLET)
+                      + "".join(panels) + "</div>", index=index, accent=ui.VIOLET)
 
 
 # ---------------------------------------------------------------------------
 # بخش ۴ — ماتریسِ درهم‌ریختگی
 # ---------------------------------------------------------------------------
-def _confusion_section(m: M.PerfMetrics) -> str:
+def _confusion_section(m: M.PerfMetrics, index: str) -> str:
     panels = [
         ui.panel(f"{L.name}", ui.heatmap(L.label_ids, L.names, L.confusion), accent=ui.INDIGO)
         for L in m.layers
     ]
     return ui.section("Confusion matrices", f'<div class="grid c2b">{"".join(panels)}</div>',
-                      index="4", accent=ui.INDIGO)
+                      index=index, accent=ui.INDIGO)
 
 
 # ---------------------------------------------------------------------------
@@ -140,12 +146,15 @@ def render_report(res: dict, *, dataset_name: str = "") -> str:
         pills=["DeepSeek", "single-shot eval"],
     )
 
-    body = (
-        _summary_section(m)
-        + _readiness_section(m)
-        + _per_class_section(m)
-        + _confusion_section(m)
-    )
+    # بخش‌ها به‌ترتیب شماره می‌خورند؛ بخشِ خاموش، شماره را اشغال نمی‌کند.
+    sections: list[str] = []
+    n = 1
+    sections.append(_summary_section(m, str(n))); n += 1
+    if SHOW_OPERATIONAL_READINESS:
+        sections.append(_readiness_section(m, str(n))); n += 1
+    sections.append(_per_class_section(m, str(n))); n += 1
+    sections.append(_confusion_section(m, str(n)))
+    body = "".join(sections)
     foot = (
         f"<b>Methodology</b>: single-shot evaluation (no clarifying questions) · "
         f"{ui.intc(m.n)} tickets · avg latency {m.latency_ms_avg:,.0f} ms/ticket · "

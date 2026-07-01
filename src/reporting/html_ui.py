@@ -217,7 +217,8 @@ body{margin:0;background:
   radial-gradient(1000px 520px at 100% 0%,#10263a 0%,transparent 50%),
   var(--bg);
   color:var(--ink);font-family:'Segoe UI',Roboto,Helvetica,Arial,system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased;padding:40px 22px}
+  -webkit-font-smoothing:antialiased;padding:40px 22px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .wrap{max-width:1180px;margin:0 auto}
 
 /* هدر */
@@ -333,7 +334,7 @@ table.hm{border-collapse:separate;border-spacing:4px;width:auto}
 .mt{margin-top:16px}
 
 @media print{
-  body{background:#fff;color:#0f172a;padding:0}
+  body{padding:0}
   .kpi,.panel,.sec{break-inside:avoid}
 }
 """

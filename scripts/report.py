@@ -292,6 +292,38 @@ def render_cost_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.
     return fig
 
 
+def _emit_html_pdf(html_str: str, html_path, pdf_path) -> None:
+    """از یک رشتهٔ HTML واحد، فایلِ HTML و/یا PDF می‌سازد (PDF بهترین‌کوشش)."""
+    import os
+    import tempfile
+    from pathlib import Path
+
+    if html_path:
+        Path(html_path).write_text(html_str, encoding="utf-8")
+        print("saved:", html_path)
+    if not pdf_path:
+        return
+
+    src_html = html_path
+    tmp = None
+    if not src_html:  # PDF بدونِ HTMLِ درخواستی → یک فایلِ موقت
+        fd, name = tempfile.mkstemp(suffix=".html")
+        os.close(fd)
+        tmp = Path(name)
+        tmp.write_text(html_str, encoding="utf-8")
+        src_html = str(tmp)
+    try:
+        from src.reporting.pdf import html_to_pdf
+
+        html_to_pdf(src_html, pdf_path)
+        print("saved:", pdf_path)
+    except Exception as e:  # نبودِ مرورگر نباید کلِ اجرا را (که API خرج کرده) بشکند
+        print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e}")
+    finally:
+        if tmp:
+            tmp.unlink(missing_ok=True)
+
+
 def evaluate_and_report(
     data_path,
     *,
@@ -307,6 +339,8 @@ def evaluate_and_report(
     cost_html=None,
     accuracy_png=None,
     cost_png=None,
+    accuracy_pdf=None,
+    cost_pdf=None,
     dataset_name=None,
     prices=(0.14, 0.0028, 0.28),
     show=True,
@@ -315,14 +349,19 @@ def evaluate_and_report(
     یک اجرای واقعی → همهٔ خروجی‌ها (بدونِ مصرفِ دوبارهٔ API). خروجی: (res, figs).
     `figs` یک dict است: {"accuracy": Figure|None, "cost": Figure|None}.
 
-    دقت و هزینه **جدا از هم** خروجی می‌گیرند — دو HTML و دو تصویر:
-      • accuracy_html : گزارشِ HTMLِ دقت (خلاصهٔ مدیریتی، آمادگیِ عملیاتی، P/R/F1، heatmap)
+    دقت و هزینه **جدا از هم** خروجی می‌گیرند — HTML و PDF و تصویر:
+      • accuracy_html : گزارشِ HTMLِ دقت (خلاصهٔ مدیریتی، P/R/F1، heatmap)
       • cost_html     : گزارشِ HTMLِ هزینه/توکن
+      • accuracy_pdf  : PDFِ دقت (دقیقاً مثلِ همان HTML — تیره)
+      • cost_pdf      : PDFِ هزینه/توکن (دقیقاً مثلِ همان HTML)
       • accuracy_png  : داشبوردِ تصویریِ دقت
       • cost_png      : داشبوردِ تصویریِ هزینه/توکن
       • errors_out    : تیکت‌های اشتباه + متن (JSON)
       • errors_xlsx   : همان تیکت‌های اشتباه (Excel)
       • out_path      : (اختیاری) همهٔ پیش‌بینی‌ها (JSONL)
+
+    PDF نیازمندِ Playwright + Chromium است؛ اگر نبود، بقیهٔ خروجی‌ها ساخته می‌شوند و
+    فقط یک هشدار چاپ می‌شود (اجرا crash نمی‌کند).
     """
     from pathlib import Path
 
@@ -357,20 +396,16 @@ def evaluate_and_report(
         figs["cost"].savefig(cost_png, dpi=160, bbox_inches="tight", facecolor="white")
         print("saved:", cost_png)
 
-    # --- HTMLهای جدا ---
-    if accuracy_html:
+    # --- HTML و PDFِ جدا (هر PDF از دلِ همان HTML رندر می‌شود) ---
+    if accuracy_html or accuracy_pdf:
         from scripts.perf_report import render_report  # importِ تنبل
 
-        Path(accuracy_html).write_text(
-            render_report(res, dataset_name=short), encoding="utf-8")
-        print("saved:", accuracy_html)
-    if cost_html:
+        _emit_html_pdf(render_report(res, dataset_name=short), accuracy_html, accuracy_pdf)
+    if cost_html or cost_pdf:
         from scripts.cost_report import render_html  # importِ تنبل
 
         breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
-        Path(cost_html).write_text(
-            render_html(breakdown, dataset_name=short), encoding="utf-8")
-        print("saved:", cost_html)
+        _emit_html_pdf(render_html(breakdown, dataset_name=short), cost_html, cost_pdf)
 
     if show:
         plt.show()
@@ -395,10 +430,13 @@ if __name__ == "__main__":
     ap.add_argument("--cost-png", default="cost_report.png")
     ap.add_argument("--accuracy-html", default="accuracy_report.html")
     ap.add_argument("--cost-html", default="cost_report.html")
+    ap.add_argument("--accuracy-pdf", default=None, help="PDFِ دقت (نیازمندِ Chromium)")
+    ap.add_argument("--cost-pdf", default=None, help="PDFِ هزینه (نیازمندِ Chromium)")
     a = ap.parse_args()
     evaluate_and_report(
         a.data_path, limit=a.limit, balanced=a.balanced, frac=a.frac, seed=a.seed,
         workers=a.workers, out_path=a.out, errors_out=a.errors, errors_xlsx=a.errors_xlsx,
         accuracy_png=a.accuracy_png, cost_png=a.cost_png,
-        accuracy_html=a.accuracy_html, cost_html=a.cost_html, show=False,
+        accuracy_html=a.accuracy_html, cost_html=a.cost_html,
+        accuracy_pdf=a.accuracy_pdf, cost_pdf=a.cost_pdf, show=False,
     )
