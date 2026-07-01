@@ -292,13 +292,13 @@ def render_cost_dashboard(res: dict, *, dataset_name: str = "", prices=(0.14, 0.
     return fig
 
 
-def _emit_html_pdf(html_str: str, html_path, pdf_path, fallback=None) -> None:
+def _emit_html_pdf(html_str: str, html_path, pdf_path) -> None:
     """
-    از یک رشتهٔ HTML واحد، فایلِ HTML و/یا PDF می‌سازد.
+    از یک رشتهٔ HTMLِ واحد، فایلِ HTML و/یا **PDFِ عینِ همان HTML** می‌سازد.
 
-    PDF با زنجیرهٔ چند‌موتوره ساخته می‌شود (Playwright/Chrome/WeasyPrint). اگر هیچ‌کدام
-    نبود و `fallback` (سازندهٔ یک Figureِ matplotlib) داده شده باشد، به‌عنوانِ آخرین راه
-    همان داشبوردِ تصویری در PDF ذخیره می‌شود تا همیشه چیزی تولید شود.
+    PDF یک سندِ برداریِ واقعی از دلِ همان HTML است (نه عکس)، با زنجیرهٔ چند‌موتوره:
+    Playwright/Chrome → WeasyPrint. اگر هیچ موتوری نبود، **هیچ فایلِ گمراه‌کننده‌ای
+    ساخته نمی‌شود**؛ فقط یک پیامِ شفاف برای نصبِ WeasyPrint چاپ می‌شود (اجرا crash نمی‌کند).
     """
     import os
     import tempfile
@@ -324,16 +324,9 @@ def _emit_html_pdf(html_str: str, html_path, pdf_path, fallback=None) -> None:
         html_to_pdf(src_html, pdf_path)
         print("saved:", pdf_path)
     except Exception as e:  # نبودِ موتور نباید کلِ اجرا (که API خرج کرده) را بشکند
-        if fallback is not None:
-            try:
-                fig = fallback()
-                fig.savefig(pdf_path, bbox_inches="tight", facecolor="white")
-                print(f"saved (matplotlib fallback): {pdf_path}")
-                print(f"   ↳ برای PDFِ عینِ HTML: pip install weasyprint  ({e})")
-            except Exception as e2:
-                print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e2}")
-        else:
-            print(f"[warning] تولیدِ PDF ناموفق بود ({pdf_path}): {e}")
+        print(f"[PDF ساخته نشد] {pdf_path}")
+        print("   برای PDFِ تیرهٔ عینِ HTML، یک‌بار نصب کن:  pip install weasyprint")
+        print(f"   (جزئیات: {e})")
     finally:
         if tmp:
             tmp.unlink(missing_ok=True)
@@ -411,22 +404,16 @@ def evaluate_and_report(
         figs["cost"].savefig(cost_png, dpi=160, bbox_inches="tight", facecolor="white")
         print("saved:", cost_png)
 
-    # --- HTML و PDFِ جدا (هر PDF از دلِ همان HTML رندر می‌شود) ---
+    # --- HTML و PDFِ جدا (هر PDF از دلِ همان HTMLِ تیره رندر می‌شود) ---
     if accuracy_html or accuracy_pdf:
         from scripts.perf_report import render_report  # importِ تنبل
 
-        _emit_html_pdf(
-            render_report(res, dataset_name=short), accuracy_html, accuracy_pdf,
-            fallback=lambda: render_accuracy_dashboard(res, dataset_name=name),
-        )
+        _emit_html_pdf(render_report(res, dataset_name=short), accuracy_html, accuracy_pdf)
     if cost_html or cost_pdf:
         from scripts.cost_report import render_html  # importِ تنبل
 
         breakdown = breakdown_from_eval(res, pricing=Pricing.from_tuple(prices))
-        _emit_html_pdf(
-            render_html(breakdown, dataset_name=short), cost_html, cost_pdf,
-            fallback=lambda: render_cost_dashboard(res, dataset_name=name, prices=prices),
-        )
+        _emit_html_pdf(render_html(breakdown, dataset_name=short), cost_html, cost_pdf)
 
     if show:
         plt.show()
