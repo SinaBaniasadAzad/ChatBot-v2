@@ -1,8 +1,8 @@
 """
-CLI تعاملی برای تست دستی هسته (بدون نیاز به API)
+CLI تعاملی برای تست دستی هسته (بدون نیاز به API).
 
 اجرا:  python cli.py
-سپس summary و description را وارد کنید؛ اگر چت‌بات سوال تکمیلی داشت، پاسخ دهید
+سپس summary و description را وارد کنید؛ اگر چت‌بات سوال تکمیلی داشت، پاسخ دهید.
 """
 from __future__ import annotations
 
