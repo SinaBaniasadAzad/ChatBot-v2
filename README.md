@@ -105,6 +105,56 @@ curl -X POST http://127.0.0.1:8000/classify/start \
 
 ---
 
+## گزارش‌های ارائه‌محور (برای مدیریت)
+
+همهٔ خروجی‌ها از **دادهٔ واقعی** و از موتورهای واحد تغذیه می‌شوند تا اعداد هیچ‌وقت با
+هم اختلاف نداشته باشند: `src/reporting/cost.py` (هزینه)، `src/reporting/metrics.py`
+(دقت)، و دیزاین‌سیستمِ مشترکِ HTML در `src/reporting/html_ui.py`.
+
+دقت و هزینه **جدا از هم** خروجی می‌گیرند — دو HTML و دو تصویر.
+
+**۱) گزارشِ دقت** (`scripts/perf_report.py`) — یک HTMLِ خودبسنده با ۴ بخش: خلاصهٔ
+مدیریتی، آمادگیِ عملیاتی (auto در برابر needs-review)، Precision/Recall/F1 هر کلاس،
+و ماتریسِ درهم‌ریختگیِ بصری. (نیازمندِ DEEPSEEK_API_KEY)
+
+```bash
+python -m scripts.perf_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
+  --out accuracy_report.html --errors errors.jsonl
+```
+
+**۲) گزارشِ هزینه/توکن** (`scripts/cost_report.py`) — یک HTMLِ مستقل. مزیتِ مهم:
+از لاگِ تولید **بدونِ نیاز به API** هم ساخته می‌شود:
+
+```bash
+python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
+```
+
+نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند
+(`--price-in`, `--price-cache`, `--price-out`؛ دلار به‌ازای هر ۱M توکن).
+
+**یک اجرا → همهٔ خروجی‌ها** (Kaggle/Notebook). `evaluate_and_report` با یک اجرای
+واقعی، **دو HTML و دو تصویرِ جدا** (دقت و هزینه) + خطاها (JSON و Excel) را می‌سازد
+(بدونِ مصرفِ دوبارهٔ API). هر دو داشبوردِ تصویری **همیشه inline نمایش داده می‌شوند**
+(مثلِ همیشه در Kaggle)، مستقل از اینکه فایلی ذخیره بخواهی:
+
+```python
+from scripts.report import evaluate_and_report
+res, figs = evaluate_and_report(
+    "/kaggle/working/ChatBot-v2/tests/Ticketing_DB.jsonl", frac=0.2, workers=6,
+    accuracy_html="/kaggle/working/accuracy_report.html",  # گزارشِ HTMLِ دقت (تمِ تیره)
+    cost_html="/kaggle/working/cost_report.html",          # گزارشِ HTMLِ هزینه/توکن (تمِ تیره)
+    accuracy_png="/kaggle/working/accuracy_report.png",    # تصویرِ دقت
+    cost_png="/kaggle/working/cost_report.png",            # تصویرِ هزینه/توکن
+    errors_out="/kaggle/working/errors.jsonl",             # تیکت‌های اشتباه (JSON)
+    errors_xlsx="/kaggle/working/errors.xlsx",             # تیکت‌های اشتباه (Excel)
+)
+```
+
+> بخشِ **Operational readiness** فعلاً خاموش است؛ با `SHOW_OPERATIONAL_READINESS = True`
+> در `scripts/perf_report.py` برمی‌گردد.
+
+---
+
 ## گام‌های بعدی (پیشنهاد مهندسی)
 1. **Gold Set:** ۱۵۰–۲۰۰ تیکت دستی‌تأییدشده بسازید (برچسب خام Key/Application نویزی است)
    و با `scripts/evaluate.py` دقت واقعی را اندازه بگیرید.

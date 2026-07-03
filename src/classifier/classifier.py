@@ -25,7 +25,8 @@ class Classifier:
     ) -> None:
         self.taxonomy = taxonomy or load_taxonomy()
         self.client = client or DeepSeekClient()
-        self.demonstrations = build_demonstrations(self.taxonomy)
+        # per_combo=5 → مثال‌های متضادِ متوازن برای هر ترکیب (system prompt کش می‌شود).
+        self.demonstrations = build_demonstrations(self.taxonomy, per_combo=5)
         self._system = build_system_prompt(self.taxonomy, self.demonstrations)
 
     def classify(
