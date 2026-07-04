@@ -6,10 +6,13 @@
   ۳) توضیحِ درخواست → دسته‌بندی با حداکثر ۲ سوالِ تکمیلی.
   ۴) ثبتِ نهایی → شمارهٔ پیگیری TKT-YYYY-NNNNN (در logs/tickets.jsonl).
 
+★ نسخهٔ Gradio: این UI با API نسخهٔ ۴/۵ نوشته شده (type="messages"، css/theme در
+Blocks). در Gradio ۶ این‌ها حذف شده‌اند؛ پس نصب را به `gradio>=4,<6` مقید کنید.
+
 اجرا روی Kaggle:
   ۱) این فایل در ریشهٔ پروژه: /kaggle/working/ChatBot-v2/app_gradio.py
   ۲) اینترنتِ نوت‌بوک روشن + Secret به نام DEEPSEEK_API_KEY.
-  ۳) نصب:  !pip -q install -U gradio openai pydantic PyYAML python-dotenv
+  ۳) نصب:  !pip -q install -U "gradio>=4,<6" openai pydantic PyYAML python-dotenv
   ۴) اجرا:  %run /kaggle/working/ChatBot-v2/app_gradio.py
 """
 from __future__ import annotations

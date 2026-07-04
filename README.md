@@ -78,12 +78,13 @@ Copy-Item .env.example .env
 ## اجرا
 
 ```powershell
-# ۱) رابطِ وبِ کارمندان (SPA در پوشهٔ web/ + همان API)
-uvicorn src.api.app:app --reload
+# ۱) رابطِ وبِ کارمندان (SPA در پوشهٔ web/ + همان API) — مسیرِ production
+uvicorn src.api.app:app --reload      # یا در PyCharm:  python run_web.py
 #    رابط کاربری: http://127.0.0.1:8000/        مستندات: http://127.0.0.1:8000/docs
 
 # ۲) نسخهٔ Gradio (برای تستِ سریع/Kaggle، همان تجربهٔ کاربری)
-python app_gradio.py
+#    ★ نیازمند Gradio نسخهٔ ۴/۵ (نه ۶):  pip install "gradio>=4,<6"
+python app_gradio.py                  # یا در PyCharm/ویندوز:  python app_gradio_windows.py
 
 # ۳) تست تعاملی دستی
 python cli.py
@@ -94,6 +95,10 @@ python -m pytest -q
 # ۵) ارزیابی دقت روی Gold Set
 python -m scripts.evaluate data/gold.jsonl
 ```
+
+> **نکتهٔ Gradio:** رابطِ Gradio با API نسخهٔ ۴/۵ نوشته شده و روی **Gradio ۶ کار نمی‌کند**
+> (`type="messages"` و css/theme در Blocks حذف شده‌اند). Gradio عمداً در `requirements.txt`
+> نیست تا سرورِ production سبک بماند؛ فقط برای تستِ محلی `pip install "gradio>=4,<6"`.
 
 ### رابطِ وبِ کارمندان (production UI)
 
