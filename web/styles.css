@@ -296,8 +296,10 @@ body {
 .home-cta {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   background: var(--primary-soft); border: 1px dashed color-mix(in srgb, var(--primary) 45%, transparent);
-  color: var(--text); border-radius: var(--radius-m); padding: 16px 18px; font-size: .9rem;
+  color: var(--text); border-radius: var(--radius-m); padding: 14px 18px; font-size: .9rem;
+  margin-bottom: 20px;
 }
+.home-cta span { font-weight: 500; }
 
 /* ---------- Compose ---------- */
 .template-banner {

@@ -1,172 +1,132 @@
 {
   "categories": [
-    "Attendance & Timesheet",
-    "HR Records",
+    "Attendance & Leave",
     "Payroll",
+    "ERP Access & Errors",
     "Loans & Funds",
-    "Performance Evaluation",
-    "IT Services"
+    "Staff & Performance",
+    "Other Systems & Access"
   ],
   "items": [
     {
-      "id": "faq-punch-missing",
-      "category": "Attendance & Timesheet",
-      "question": "My clock-in / clock-out (punch) was not recorded",
-      "summary": "Clock-in/out punch not recorded",
-      "description": "My entry/exit punch was not recorded correctly in the ERP system.\nDate(s) affected: [DATE]\nWhat is wrong (missing entry, missing exit, wrong time): [DETAILS]",
-      "keywords": ["punch", "clock", "entry", "exit", "attendance", "not recorded", "پانچ", "ورود", "خروج", "تردد", "ثبت نشده"]
-    },
-    {
-      "id": "faq-timesheet-calc",
-      "category": "Attendance & Timesheet",
-      "question": "My timesheet shows a shortfall or was calculated incorrectly",
-      "summary": "Timesheet calculated incorrectly",
-      "description": "My timesheet was not calculated correctly and shows a work-hour shortfall.\nMonth / date range: [DATE]\nExpected vs. shown hours: [DETAILS]",
-      "keywords": ["timesheet", "shortfall", "calculation", "hours", "wrong", "تایم شیت", "کسر کار", "محاسبه", "کارکرد"]
-    },
-    {
-      "id": "faq-month-locked",
-      "category": "Attendance & Timesheet",
-      "question": "I get an \"attendance month is locked\" error when submitting my timesheet",
-      "summary": "Attendance month locked - cannot submit timesheet",
-      "description": "When I try to register my timesheet/mission manually, the system shows the error \"you cannot create ... because the attendance month is locked for edits\" and blocks me.\nMonth: [MONTH]\nItem I am trying to register (timesheet / mission / leave): [DETAILS]",
-      "keywords": ["locked", "attendance month", "error", "mission", "timesheet", "قفل", "ماه", "خطا", "تایم شیت"]
-    },
-    {
-      "id": "faq-holiday-leave",
-      "category": "Attendance & Timesheet",
-      "question": "I cannot register work hours or leave on a holiday (shift work)",
-      "summary": "Cannot register work/leave on holiday",
-      "description": "I work in shifts and the system does not let me register work hours or leave on holidays - it counts the hours as zero.\nDate(s): [DATE]\nShift / schedule details: [DETAILS]",
-      "keywords": ["holiday", "shift", "leave", "zero hours", "time off", "تعطیل", "شیفت", "مرخصی", "ساعت کاری"]
+      "id": "faq-punch-erp",
+      "category": "Attendance & Leave",
+      "question": "چگونه مشکل عدم ثبت پانچ ورود و خروج در ERP را حل کنم؟",
+      "summary": "عدم ثبت پانچ ورود و خروج در ERP",
+      "description": "پانچ ورود/خروج من در سامانه ERP به‌درستی ثبت نشده است.\nتاریخ(های) مورد نظر: [DATE]\nمورد (نبودِ ورود / نبودِ خروج / زمان اشتباه): [DETAILS]",
+      "keywords": ["punch", "clock", "entry", "exit", "attendance", "erp", "پانچ", "ورود", "خروج", "تردد", "ثبت نشده"]
     },
     {
       "id": "faq-cancel-leave",
-      "category": "Attendance & Timesheet",
-      "question": "I registered a leave request by mistake and want it cancelled",
-      "summary": "Cancel leave registered by mistake",
-      "description": "I registered leave by mistake and would like it removed. I was actually present at work on those days.\nDate(s) to cancel: [DATE]",
-      "keywords": ["cancel", "leave", "mistake", "remove", "delete", "لغو", "مرخصی", "اشتباه", "حذف"]
+      "category": "Attendance & Leave",
+      "question": "چگونه مرخصی اشتباه ثبت شده را حذف کنم؟",
+      "summary": "حذف مرخصی اشتباه ثبت‌شده",
+      "description": "مرخصی‌ای به اشتباه ثبت شده و می‌خواهم حذف شود؛ در آن روز(ها) حاضر بوده‌ام.\nتاریخ(های) مرخصی برای حذف: [DATE]",
+      "keywords": ["cancel", "delete", "leave", "mistake", "مرخصی", "حذف", "اشتباه", "لغو"]
     },
     {
-      "id": "faq-mission-request",
-      "category": "Attendance & Timesheet",
-      "question": "My business trip (mission) was not registered correctly",
-      "summary": "Business trip (mission) not registered correctly",
-      "description": "My business trip (mission) record is missing or incorrect in the system.\nDate(s): [DATE]\nDestination / details: [DETAILS]",
-      "keywords": ["mission", "business trip", "travel", "not registered", "ماموریت", "ثبت"]
+      "id": "faq-full-absence",
+      "category": "Attendance & Leave",
+      "question": "چرا تایم شیت من Full Absence نشان می دهد؟",
+      "summary": "نمایش Full Absence در تایم‌شیت",
+      "description": "تایم‌شیت من به اشتباه «Full Absence» نشان می‌دهد در حالی که حضور داشته‌ام.\nماه / بازهٔ زمانی: [DATE]\nتوضیحات: [DETAILS]",
+      "keywords": ["timesheet", "full absence", "absence", "attendance", "تایم شیت", "غیبت", "حضور", "کارکرد"]
     },
     {
-      "id": "faq-ts-approver",
-      "category": "Attendance & Timesheet",
-      "question": "Request timesheet-approver access for an employee",
-      "summary": "Timesheet approver access request",
-      "description": "Please create timesheet-approver access for the following employee:\nFull name: [NAME]\nEmployee ID: [EMPLOYEE_ID]\nDepartment / team: [DEPARTMENT]",
-      "keywords": ["timesheet approver", "access", "approver", "create", "تایم شیت اپرور", "دسترسی", "ایجاد"]
+      "id": "faq-leave-balance",
+      "category": "Attendance & Leave",
+      "question": "چگونه مانده مرخصی خود را در ERP مشاهده کنم؟",
+      "summary": "مشاهدهٔ مانده مرخصی در ERP",
+      "description": "درخواست راهنمایی/دسترسی برای مشاهدهٔ ماندهٔ مرخصی‌ام در سامانه ERP دارم.\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["leave balance", "remaining leave", "balance", "erp", "مانده مرخصی", "مرخصی", "باقیمانده"]
     },
     {
-      "id": "faq-position-change",
-      "category": "HR Records",
-      "question": "Request a job position / job title change in ERP",
-      "summary": "Job position change request",
-      "description": "Please apply the following job position / title change in the ERP system:\nFull name: [NAME]\nEmployee ID: [EMPLOYEE_ID]\nNew position / title: [NEW_POSITION]",
-      "keywords": ["position", "job title", "change", "promotion", "پوزیشن", "عنوان شغلی", "تغییر"]
-    },
-    {
-      "id": "faq-contract-update",
-      "category": "HR Records",
-      "question": "Request a contract type update in the system",
-      "summary": "Contract type update request",
-      "description": "Please update the contract information in the system:\nFull name: [NAME]\nEmployee ID: [EMPLOYEE_ID]\nRequested change: [DETAILS]",
-      "keywords": ["contract", "update", "type", "قرارداد", "به روز رسانی", "تغییر"]
-    },
-    {
-      "id": "faq-profile-fix",
-      "category": "HR Records",
-      "question": "My personal profile information is incorrect (name, cost center, ...)",
-      "summary": "Correct personal profile information",
-      "description": "Some of my personal profile information in the system is incorrect and needs correction.\nField(s) to correct: [FIELD]\nCorrect value: [VALUE]",
-      "keywords": ["profile", "cost center", "personal info", "correction", "پروفایل", "اصلاح", "مشخصات"]
+      "id": "faq-rpc-error",
+      "category": "ERP Access & Errors",
+      "question": "خطای RPC_ERROR در ERP چیست و چگونه حل می شود؟",
+      "summary": "خطای RPC_ERROR در ERP",
+      "description": "هنگام کار با سامانه ERP خطای RPC_ERROR دریافت می‌کنم.\nصفحه/عملیاتی که خطا می‌دهد: [DETAILS]\nمتن کامل خطا: [ERROR]",
+      "keywords": ["rpc_error", "rpc", "error", "erp", "خطا", "ارور", "اررور"]
     },
     {
       "id": "faq-payslip",
       "category": "Payroll",
-      "question": "Request my payslip / salary information",
-      "summary": "Payslip request",
-      "description": "Please provide my payslip / salary information.\nMonth(s): [MONTH]\nPurpose (if relevant): [DETAILS]",
-      "keywords": ["payslip", "salary", "pay", "slip", "فیش حقوقی", "حقوق", "دریافت"]
+      "question": "چگونه می توانم فیش حقوقی خود را دریافت کنم؟",
+      "summary": "درخواست فیش حقوقی",
+      "description": "لطفاً فیش حقوقی من را ارائه دهید.\nماه(های) مورد نظر: [MONTH]\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["payslip", "salary", "pay slip", "فیش حقوقی", "حقوق", "فیش", "دریافت"]
     },
     {
-      "id": "faq-salary-calc",
+      "id": "faq-erpplus-login",
+      "category": "ERP Access & Errors",
+      "question": "چرا نمی توانم در ERP Plus لاگین کنم؟",
+      "summary": "عدم امکان ورود به ERP Plus",
+      "description": "نمی‌توانم وارد سامانه ERP Plus شوم.\nنام کاربری: [USERNAME]\nپیام خطای هنگام ورود: [ERROR]",
+      "keywords": ["login", "erp plus", "erpplus", "sign in", "لاگین", "ورود", "erp"]
+    },
+    {
+      "id": "faq-fund-loan",
+      "category": "Loans & Funds",
+      "question": "چگونه مشکل وام صندوق را حل کنم؟",
+      "summary": "مشکل در وام صندوق",
+      "description": "در فرایند وام صندوق با مشکل مواجه شده‌ام.\nنوع وام: [LOAN_TYPE]\nشرح مشکل / متن خطا: [DETAILS]",
+      "keywords": ["loan", "fund", "guarantor", "وام", "صندوق", "ضامن"]
+    },
+    {
+      "id": "faq-payslip-sms",
       "category": "Payroll",
-      "question": "My salary or overtime was calculated incorrectly",
-      "summary": "Salary/overtime calculated incorrectly",
-      "description": "My salary or overtime for this period appears to be calculated incorrectly.\nMonth: [MONTH]\nWhat looks wrong: [DETAILS]",
-      "keywords": ["salary", "overtime", "wrong", "calculation", "miscalculated", "حقوق", "اضافه کار", "اشتباه", "محاسبه"]
+      "question": "پیامک تأیید فیش حقوقی برای من ارسال نمی شود",
+      "summary": "عدم ارسال پیامک تأیید فیش حقوقی",
+      "description": "پیامک تأیید / کد فیش حقوقی برای من ارسال نمی‌شود.\nشماره موبایل ثبت‌شده: [PHONE]\nماه: [MONTH]",
+      "keywords": ["sms", "otp", "payslip", "code", "پیامک", "فیش حقوقی", "کد", "ارسال نمی‌شود"]
     },
     {
-      "id": "faq-loan-activate",
+      "id": "faq-staff-access",
+      "category": "Staff & Performance",
+      "question": "چگونه به سامانه Staff دسترسی پیدا کنم؟",
+      "summary": "درخواست دسترسی به سامانه Staff",
+      "description": "درخواست ایجاد دسترسی/حساب در سامانه Staff دارم.\nنام و نام خانوادگی: [NAME]\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["staff", "access", "account", "استف", "دسترسی", "حساب", "سامانه"]
+    },
+    {
+      "id": "faq-staff-loan",
       "category": "Loans & Funds",
-      "question": "The Loan option is not available in Staff - request activation",
-      "summary": "Activate Loan option in Staff",
-      "description": "The Loan option is not available for me in the Staff platform. Please activate it for my account.\nEmployee ID: [EMPLOYEE_ID]\nPurpose (loan request / guarantor): [DETAILS]",
-      "keywords": ["loan", "activate", "staff", "not available", "option", "وام", "فعال سازی", "گزینه"]
+      "question": "گزینه Loan در Staff من وجود ندارد",
+      "summary": "نبودِ گزینهٔ Loan در Staff",
+      "description": "گزینهٔ Loan در سامانه Staff برای من نمایش داده نمی‌شود؛ لطفاً فعال شود.\nکد پرسنلی: [EMPLOYEE_ID]\nهدف (ثبت وام / ضمانت): [DETAILS]",
+      "keywords": ["loan", "staff", "activate", "option", "وام", "استف", "فعال‌سازی", "گزینه"]
     },
     {
-      "id": "faq-loan-guarantor",
-      "category": "Loans & Funds",
-      "question": "I get a guarantor error when registering a loan request",
-      "summary": "Guarantor error on loan request",
-      "description": "When registering my loan request, the system shows a guarantor error (e.g. \"two guarantors\" or guarantor-approval error) even though the guarantor has approved.\nLoan type: [LOAN_TYPE]\nExact error message: [ERROR]",
-      "keywords": ["guarantor", "loan", "error", "approval", "ضامن", "وام", "خطا", "تایید"]
+      "id": "faq-evaluation",
+      "category": "Staff & Performance",
+      "question": "چگونه مشکل ارزیابی عملکرد را حل کنم؟",
+      "summary": "مشکل در ارزیابی عملکرد",
+      "description": "در بخش ارزیابی عملکرد با مشکل/خطا مواجه شده‌ام.\nدورهٔ ارزیابی: [PERIOD]\nمتن خطا: [ERROR]",
+      "keywords": ["evaluation", "performance", "ارزیابی", "عملکرد", "خطا", "نمره"]
     },
     {
-      "id": "faq-loan-stage",
-      "category": "Loans & Funds",
-      "question": "A loan was approved twice / moved to the wrong stage - revert it",
-      "summary": "Revert loan to previous stage",
-      "description": "A loan request was approved twice by mistake and moved to the wrong stage. Please revert it to the previous stage.\nLoan reference: [LOAN_REF]\nCurrent stage / requested stage: [DETAILS]",
-      "keywords": ["loan", "stage", "approve", "revert", "treasury", "accounting", "وام", "مرحله", "عودت", "تریشری", "اکانتینگ"]
+      "id": "faq-car-request",
+      "category": "Other Systems & Access",
+      "question": "چرا نمیتوانم درخواست ماشین ثبت کنم؟",
+      "summary": "عدم امکان ثبت درخواست خودرو",
+      "description": "نمی‌توانم درخواست خودرو/ماشین را ثبت کنم.\nتاریخ / مقصد مورد نیاز: [DETAILS]\nمتن خطا (در صورت وجود): [ERROR]",
+      "keywords": ["car", "vehicle", "transport", "ماشین", "خودرو", "درخواست", "سرویس"]
     },
     {
-      "id": "faq-eval-error",
-      "category": "Performance Evaluation",
-      "question": "I get an error when submitting my performance evaluation",
-      "summary": "Error when submitting evaluation",
-      "description": "When I try to submit my performance evaluation in Staff, the system shows an error.\nEvaluation period: [PERIOD]\nExact error message: [ERROR]",
-      "keywords": ["evaluation", "error", "submit", "performance", "ارزیابی", "خطا", "ثبت", "نمره"]
+      "id": "faq-ops-wbs",
+      "category": "Other Systems & Access",
+      "question": "WBS مورد نیاز من در OPS وجود ندارد",
+      "summary": "نبودِ WBS مورد نیاز در OPS",
+      "description": "کد WBS مورد نیاز من در سامانه OPS تعریف/نمایش داده نشده است.\nکد / نام WBS: [WBS]\nپروژهٔ مربوطه: [DETAILS]",
+      "keywords": ["wbs", "ops", "project", "code", "پروژه", "تعریف نشده", "کد"]
     },
     {
-      "id": "faq-self-assessment",
-      "category": "Performance Evaluation",
-      "question": "Request access to submit my self-assessment",
-      "summary": "Open self-assessment access",
-      "description": "Please open my access to submit the self-assessment score.\nEvaluation period (season): [PERIOD]\nEmployee ID: [EMPLOYEE_ID]",
-      "keywords": ["self-assessment", "access", "open", "score", "خودارزیابی", "دسترسی", "نمره"]
-    },
-    {
-      "id": "faq-staff-account",
-      "category": "IT Services",
-      "question": "Request a Staff account for a new employee",
-      "summary": "Create Staff account for new employee",
-      "description": "Please create a Staff platform account for the following new employee:\nFull name: [NAME]\nEmployee ID: [EMPLOYEE_ID]\nDepartment / start date: [DETAILS]",
-      "keywords": ["staff account", "new employee", "create", "user", "حساب", "کاربر", "ایجاد", "استف"]
-    },
-    {
-      "id": "faq-vpn-jabber",
-      "category": "IT Services",
-      "question": "Request VPN or Jabber access",
-      "summary": "VPN / Jabber access request",
-      "description": "Please set up the following access for me:\nService (VPN / Jabber): [SERVICE]\nEmployee ID: [EMPLOYEE_ID]\nBusiness reason: [DETAILS]",
-      "keywords": ["vpn", "jabber", "access", "remote", "دسترسی", "وی پی ان", "جبر"]
-    },
-    {
-      "id": "faq-staff-down",
-      "category": "IT Services",
-      "question": "The Staff platform will not load or shows a server error",
-      "summary": "Staff platform not loading / server error",
-      "description": "The Staff platform does not load or shows a server error when I open it.\nWhat I was doing: [DETAILS]\nExact error message (if any): [ERROR]",
-      "keywords": ["staff", "down", "not loading", "server error", "crash", "بالا نمی آید", "لود", "خطا", "سرور"]
+      "id": "faq-sap-access",
+      "category": "Other Systems & Access",
+      "question": "به SAP دسترسی ندارم",
+      "summary": "عدم دسترسی به SAP",
+      "description": "به سامانه SAP دسترسی ندارم؛ درخواست ایجاد/فعال‌سازی دسترسی دارم.\nکد پرسنلی: [EMPLOYEE_ID]\nماژول / تراکنش مورد نیاز: [DETAILS]",
+      "keywords": ["sap", "access", "دسترسی", "سپ", "ماژول"]
     }
   ]
 }
