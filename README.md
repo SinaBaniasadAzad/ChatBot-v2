@@ -78,19 +78,37 @@ Copy-Item .env.example .env
 ## اجرا
 
 ```powershell
-# ۱) تست تعاملی دستی
+# ۱) رابطِ وبِ کارمندان (SPA در پوشهٔ web/ + همان API)
+uvicorn src.api.app:app --reload
+#    رابط کاربری: http://127.0.0.1:8000/        مستندات: http://127.0.0.1:8000/docs
+
+# ۲) نسخهٔ Gradio (برای تستِ سریع/Kaggle، همان تجربهٔ کاربری)
+python app_gradio.py
+
+# ۳) تست تعاملی دستی
 python cli.py
 
-# ۲) سرویس API
-uvicorn src.api.app:app --reload
-#    مستندات: http://127.0.0.1:8000/docs
-
-# ۳) تست‌های آفلاین (بدون API)
+# ۴) تست‌های آفلاین (بدون API)
 python -m pytest -q
 
-# ۴) ارزیابی دقت روی Gold Set
+# ۵) ارزیابی دقت روی Gold Set
 python -m scripts.evaluate data/gold.jsonl
 ```
+
+### رابطِ وبِ کارمندان (production UI)
+
+سفرِ کاربر در ۳ گام: **شناسایی** (کد پرسنلی + نام، یک‌بار در هر دستگاه) →
+**جستجوی FAQ یا توضیحِ آزاد** → **تایید و ثبت** با شمارهٔ پیگیری `TKT-YYYY-NNNNN`.
+
+- **FAQ (قالب‌های آماده):** ۲۰ درخواستِ پرتکرار در `data/faq.json` — ویرایش بدون تغییرِ کد.
+  جستجوی لحظه‌ای با نرمال‌سازیِ فارسی/عربی (ي→ی، ك→ک، ارقام) در `src/faq.py` و همان منطق
+  سمتِ کلاینت.
+- **ثبتِ نهایی:** `POST /api/tickets` → افزودن به `logs/tickets.jsonl` (append-only، حاویِ
+  PII، در gitignore) با شمارهٔ پیگیریِ ترتیبی — آمادهٔ اتصال به ITSM واقعی.
+- **اندپوینت‌های جدید:** `GET /api/faq`، `POST /api/tickets`، `GET /api/logo`؛ مسیرهای
+  `classify/*` بدونِ تغییر.
+- فایل‌های UI: `web/index.html`، `web/styles.css`، `web/app.js` — بدونِ build step؛ تمِ
+  تیره/روشن، ریسپانسیو، کیبورد/ARIA، ورودی‌های `dir=auto` برای متنِ فارسی.
 
 ### نمونهٔ فراخوانی API
 

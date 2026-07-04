@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Service Desk — Ticket Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Vazirmatn:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="icon" href="/api/logo" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="brand">
+        <span class="brand-logo" id="brand-logo" aria-hidden="true"></span>
+        <span class="brand-text">
+          <span class="brand-title">Service Desk</span>
+          <span class="brand-sub">Ticket Assistant</span>
+        </span>
+      </div>
+      <div class="appbar-actions">
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="Toggle dark mode" title="Toggle theme">
+          <span class="theme-icon" aria-hidden="true"></span>
+        </button>
+        <button class="user-chip" id="user-chip" type="button" hidden aria-label="Edit your details">
+          <span class="user-avatar" id="user-avatar" aria-hidden="true"></span>
+          <span class="user-meta">
+            <span class="user-name" id="user-name"></span>
+            <span class="user-id" id="user-id"></span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="main">
+
+    <!-- Stepper -->
+    <nav class="stepper" id="stepper" aria-label="Progress" hidden>
+      <ol>
+        <li class="step" data-step="1"><span class="step-dot">1</span><span class="step-label">Describe</span></li>
+        <li class="step" data-step="2"><span class="step-dot">2</span><span class="step-label">Review</span></li>
+        <li class="step" data-step="3"><span class="step-dot">3</span><span class="step-label">Done</span></li>
+      </ol>
+    </nav>
+
+    <!-- ============ View: Identity ============ -->
+    <section class="view" id="view-identity" hidden>
+      <div class="card identity-card">
+        <h1 class="view-title">Welcome 👋</h1>
+        <p class="view-lead">Tell us who you are so we can route and track your ticket. You'll only do this once on this device.</p>
+        <form id="identity-form" novalidate>
+          <div class="field">
+            <label for="f-empid">Employee ID</label>
+            <input id="f-empid" name="employee_id" inputmode="numeric" autocomplete="off"
+                   placeholder="e.g. 263669" maxlength="10" />
+            <p class="field-error" id="err-empid" role="alert" hidden>Enter your numeric employee ID (3–10 digits).</p>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-first">First name</label>
+              <input id="f-first" name="first_name" autocomplete="given-name" dir="auto" placeholder="First name" maxlength="80" />
+              <p class="field-error" id="err-first" role="alert" hidden>Enter your first name.</p>
+            </div>
+            <div class="field">
+              <label for="f-last">Last name</label>
+              <input id="f-last" name="last_name" autocomplete="family-name" dir="auto" placeholder="Last name" maxlength="80" />
+              <p class="field-error" id="err-last" role="alert" hidden>Enter your last name.</p>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Continue</button>
+          <p class="privacy-note">🔒 Used only to identify your ticket — never shared outside the support team.</p>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============ View: Home (search + FAQ) ============ -->
+    <section class="view" id="view-home" hidden>
+      <h1 class="view-title" id="home-greeting">How can we help?</h1>
+      <p class="view-lead">Start from a common request below — it fills the ticket for you — or describe the issue in your own words.</p>
+
+      <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </span>
+        <input id="faq-search" type="search" dir="auto" autocomplete="off"
+               placeholder="Search common requests… (press / to focus)"
+               aria-label="Search frequently asked questions" />
+        <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>×</button>
+      </div>
+
+      <div class="chip-row" id="chip-row" role="tablist" aria-label="Filter by category"></div>
+
+      <p class="faq-count" id="faq-count" aria-live="polite"></p>
+      <ul class="faq-list" id="faq-list"></ul>
+
+      <div class="faq-empty" id="faq-empty" hidden>
+        <p>No matching request found.</p>
+        <button class="btn btn-secondary" type="button" data-action="compose-blank">Describe your issue instead</button>
+      </div>
+
+      <div class="home-cta">
+        <span>Can't find what you need?</span>
+        <button class="btn btn-primary" type="button" data-action="compose-blank">Write your own ticket</button>
+      </div>
+    </section>
+
+    <!-- ============ View: Compose ============ -->
+    <section class="view" id="view-compose" hidden>
+      <button class="back-link" type="button" data-action="back-home">← Back to common requests</button>
+      <h1 class="view-title">Describe your request</h1>
+
+      <div class="template-banner" id="template-banner" hidden>
+        <span class="template-banner-icon" aria-hidden="true">📋</span>
+        <span>Template applied: <b id="template-name"></b> — replace the <code>[BRACKETED]</code> parts with your details.</span>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label for="t-subject">Subject</label>
+          <input id="t-subject" dir="auto" maxlength="150" placeholder="Brief summary of the issue or request" />
+          <p class="field-hint"><span id="subject-count">0</span>/150</p>
+        </div>
+        <div class="field">
+          <label for="t-desc">Description</label>
+          <textarea id="t-desc" dir="auto" rows="7" maxlength="3000"
+                    placeholder="Describe the problem in detail — system, dates, employee IDs, exact error messages…"></textarea>
+          <p class="field-hint"><span id="desc-count">0</span>/3000 — you can write in Persian or English.</p>
+        </div>
+        <p class="field-error" id="compose-error" role="alert" hidden></p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="analyze-btn" type="button">
+            <span class="btn-label">Analyze &amp; continue</span>
+            <span class="btn-spinner" aria-hidden="true" hidden></span>
+          </button>
+          <button class="btn btn-ghost" type="button" data-action="back-home">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ View: Triage (chat) ============ -->
+    <section class="view" id="view-triage" hidden>
+      <h1 class="view-title">Reviewing your ticket</h1>
+      <p class="view-lead">Our assistant reads your ticket and routes it to the right team. It may ask up to two quick questions.</p>
+
+      <div class="chat card" id="chat" role="log" aria-live="polite" aria-label="Conversation with the assistant"></div>
+
+      <form class="reply-bar" id="reply-bar" hidden>
+        <input id="reply-input" dir="auto" autocomplete="off" placeholder="Type your answer…" aria-label="Your answer" />
+        <button class="btn btn-primary" id="reply-send" type="submit">Send</button>
+      </form>
+
+      <div class="confirm-bar" id="confirm-bar" hidden>
+        <button class="btn btn-primary" id="submit-ticket-btn" type="button">
+          <span class="btn-label">Submit ticket</span>
+          <span class="btn-spinner" aria-hidden="true" hidden></span>
+        </button>
+        <button class="btn btn-secondary" type="button" data-action="edit-ticket">Edit details</button>
+        <button class="btn btn-ghost" type="button" data-action="start-over">Start over</button>
+      </div>
+    </section>
+
+    <!-- ============ View: Done ============ -->
+    <section class="view" id="view-done" hidden>
+      <div class="card done-card">
+        <div class="done-check" aria-hidden="true">
+          <svg viewBox="0 0 52 52"><circle class="done-circle" cx="26" cy="26" r="24" fill="none"/><path class="done-tick" fill="none" d="M14 27l8 8 16-17"/></svg>
+        </div>
+        <h1 class="view-title">Ticket submitted</h1>
+        <p class="view-lead">Keep this reference — you'll need it to follow up.</p>
+        <div class="ref-box">
+          <span class="ref-number" id="ref-number"></span>
+          <button class="btn btn-secondary btn-sm" id="copy-ref" type="button">Copy</button>
+        </div>
+        <dl class="done-meta">
+          <div><dt>Subject</dt><dd id="done-subject" dir="auto"></dd></div>
+          <div><dt>Routed to</dt><dd id="done-routing"></dd></div>
+          <div><dt>Submitted by</dt><dd id="done-by"></dd></div>
+          <div><dt>Time</dt><dd id="done-time"></dd></div>
+        </dl>
+        <p class="done-review-note" id="done-review-note" hidden>⚠️ A support agent will double-check the routing of this ticket.</p>
+        <button class="btn btn-primary" type="button" data-action="start-over">Submit another ticket</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">Ticket Assistant · Internal service — for help contact the IT Service Desk</footer>
+
+  <div class="toast-region" id="toast-region" aria-live="assertive"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
