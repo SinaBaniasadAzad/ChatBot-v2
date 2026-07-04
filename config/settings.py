@@ -39,6 +39,11 @@ class Settings:
         "INTERACTION_LOG_PATH", "logs/interactions.jsonl"
     )
 
+    # --- Ticket submissions (خروجی نهایی؛ حاوی PII، داخل logs/ بماند) ---
+    tickets_log_path: Path = PROJECT_ROOT / os.getenv(
+        "TICKETS_LOG_PATH", "logs/tickets.jsonl"
+    )
+
     # --- Paths ---
     taxonomy_path: Path = PROJECT_ROOT / "config" / "taxonomy.yaml"
     examples_path: Path = PROJECT_ROOT / "data" / "examples.jsonl"

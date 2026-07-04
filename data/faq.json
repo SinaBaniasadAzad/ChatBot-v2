@@ -1,0 +1,132 @@
+{
+  "categories": [
+    "Attendance & Leave",
+    "Payroll",
+    "ERP Access & Errors",
+    "Loans & Funds",
+    "Staff & Performance",
+    "Other Systems & Access"
+  ],
+  "items": [
+    {
+      "id": "faq-punch-erp",
+      "category": "Attendance & Leave",
+      "question": "چگونه مشکل عدم ثبت پانچ ورود و خروج در ERP را حل کنم؟",
+      "summary": "عدم ثبت پانچ ورود و خروج در ERP",
+      "description": "پانچ ورود/خروج من در سامانه ERP به‌درستی ثبت نشده است.\nتاریخ(های) مورد نظر: [DATE]\nمورد (نبودِ ورود / نبودِ خروج / زمان اشتباه): [DETAILS]",
+      "keywords": ["punch", "clock", "entry", "exit", "attendance", "erp", "پانچ", "ورود", "خروج", "تردد", "ثبت نشده"]
+    },
+    {
+      "id": "faq-cancel-leave",
+      "category": "Attendance & Leave",
+      "question": "چگونه مرخصی اشتباه ثبت شده را حذف کنم؟",
+      "summary": "حذف مرخصی اشتباه ثبت‌شده",
+      "description": "مرخصی‌ای به اشتباه ثبت شده و می‌خواهم حذف شود؛ در آن روز(ها) حاضر بوده‌ام.\nتاریخ(های) مرخصی برای حذف: [DATE]",
+      "keywords": ["cancel", "delete", "leave", "mistake", "مرخصی", "حذف", "اشتباه", "لغو"]
+    },
+    {
+      "id": "faq-full-absence",
+      "category": "Attendance & Leave",
+      "question": "چرا تایم شیت من Full Absence نشان می دهد؟",
+      "summary": "نمایش Full Absence در تایم‌شیت",
+      "description": "تایم‌شیت من به اشتباه «Full Absence» نشان می‌دهد در حالی که حضور داشته‌ام.\nماه / بازهٔ زمانی: [DATE]\nتوضیحات: [DETAILS]",
+      "keywords": ["timesheet", "full absence", "absence", "attendance", "تایم شیت", "غیبت", "حضور", "کارکرد"]
+    },
+    {
+      "id": "faq-leave-balance",
+      "category": "Attendance & Leave",
+      "question": "چگونه مانده مرخصی خود را در ERP مشاهده کنم؟",
+      "summary": "مشاهدهٔ مانده مرخصی در ERP",
+      "description": "درخواست راهنمایی/دسترسی برای مشاهدهٔ ماندهٔ مرخصی‌ام در سامانه ERP دارم.\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["leave balance", "remaining leave", "balance", "erp", "مانده مرخصی", "مرخصی", "باقیمانده"]
+    },
+    {
+      "id": "faq-rpc-error",
+      "category": "ERP Access & Errors",
+      "question": "خطای RPC_ERROR در ERP چیست و چگونه حل می شود؟",
+      "summary": "خطای RPC_ERROR در ERP",
+      "description": "هنگام کار با سامانه ERP خطای RPC_ERROR دریافت می‌کنم.\nصفحه/عملیاتی که خطا می‌دهد: [DETAILS]\nمتن کامل خطا: [ERROR]",
+      "keywords": ["rpc_error", "rpc", "error", "erp", "خطا", "ارور", "اررور"]
+    },
+    {
+      "id": "faq-payslip",
+      "category": "Payroll",
+      "question": "چگونه می توانم فیش حقوقی خود را دریافت کنم؟",
+      "summary": "درخواست فیش حقوقی",
+      "description": "لطفاً فیش حقوقی من را ارائه دهید.\nماه(های) مورد نظر: [MONTH]\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["payslip", "salary", "pay slip", "فیش حقوقی", "حقوق", "فیش", "دریافت"]
+    },
+    {
+      "id": "faq-erpplus-login",
+      "category": "ERP Access & Errors",
+      "question": "چرا نمی توانم در ERP Plus لاگین کنم؟",
+      "summary": "عدم امکان ورود به ERP Plus",
+      "description": "نمی‌توانم وارد سامانه ERP Plus شوم.\nنام کاربری: [USERNAME]\nپیام خطای هنگام ورود: [ERROR]",
+      "keywords": ["login", "erp plus", "erpplus", "sign in", "لاگین", "ورود", "erp"]
+    },
+    {
+      "id": "faq-fund-loan",
+      "category": "Loans & Funds",
+      "question": "چگونه مشکل وام صندوق را حل کنم؟",
+      "summary": "مشکل در وام صندوق",
+      "description": "در فرایند وام صندوق با مشکل مواجه شده‌ام.\nنوع وام: [LOAN_TYPE]\nشرح مشکل / متن خطا: [DETAILS]",
+      "keywords": ["loan", "fund", "guarantor", "وام", "صندوق", "ضامن"]
+    },
+    {
+      "id": "faq-payslip-sms",
+      "category": "Payroll",
+      "question": "پیامک تأیید فیش حقوقی برای من ارسال نمی شود",
+      "summary": "عدم ارسال پیامک تأیید فیش حقوقی",
+      "description": "پیامک تأیید / کد فیش حقوقی برای من ارسال نمی‌شود.\nشماره موبایل ثبت‌شده: [PHONE]\nماه: [MONTH]",
+      "keywords": ["sms", "otp", "payslip", "code", "پیامک", "فیش حقوقی", "کد", "ارسال نمی‌شود"]
+    },
+    {
+      "id": "faq-staff-access",
+      "category": "Staff & Performance",
+      "question": "چگونه به سامانه Staff دسترسی پیدا کنم؟",
+      "summary": "درخواست دسترسی به سامانه Staff",
+      "description": "درخواست ایجاد دسترسی/حساب در سامانه Staff دارم.\nنام و نام خانوادگی: [NAME]\nکد پرسنلی: [EMPLOYEE_ID]",
+      "keywords": ["staff", "access", "account", "استف", "دسترسی", "حساب", "سامانه"]
+    },
+    {
+      "id": "faq-staff-loan",
+      "category": "Loans & Funds",
+      "question": "گزینه Loan در Staff من وجود ندارد",
+      "summary": "نبودِ گزینهٔ Loan در Staff",
+      "description": "گزینهٔ Loan در سامانه Staff برای من نمایش داده نمی‌شود؛ لطفاً فعال شود.\nکد پرسنلی: [EMPLOYEE_ID]\nهدف (ثبت وام / ضمانت): [DETAILS]",
+      "keywords": ["loan", "staff", "activate", "option", "وام", "استف", "فعال‌سازی", "گزینه"]
+    },
+    {
+      "id": "faq-evaluation",
+      "category": "Staff & Performance",
+      "question": "چگونه مشکل ارزیابی عملکرد را حل کنم؟",
+      "summary": "مشکل در ارزیابی عملکرد",
+      "description": "در بخش ارزیابی عملکرد با مشکل/خطا مواجه شده‌ام.\nدورهٔ ارزیابی: [PERIOD]\nمتن خطا: [ERROR]",
+      "keywords": ["evaluation", "performance", "ارزیابی", "عملکرد", "خطا", "نمره"]
+    },
+    {
+      "id": "faq-car-request",
+      "category": "Other Systems & Access",
+      "question": "چرا نمیتوانم درخواست ماشین ثبت کنم؟",
+      "summary": "عدم امکان ثبت درخواست خودرو",
+      "description": "نمی‌توانم درخواست خودرو/ماشین را ثبت کنم.\nتاریخ / مقصد مورد نیاز: [DETAILS]\nمتن خطا (در صورت وجود): [ERROR]",
+      "keywords": ["car", "vehicle", "transport", "ماشین", "خودرو", "درخواست", "سرویس"]
+    },
+    {
+      "id": "faq-ops-wbs",
+      "category": "Other Systems & Access",
+      "question": "WBS مورد نیاز من در OPS وجود ندارد",
+      "summary": "نبودِ WBS مورد نیاز در OPS",
+      "description": "کد WBS مورد نیاز من در سامانه OPS تعریف/نمایش داده نشده است.\nکد / نام WBS: [WBS]\nپروژهٔ مربوطه: [DETAILS]",
+      "keywords": ["wbs", "ops", "project", "code", "پروژه", "تعریف نشده", "کد"]
+    },
+    {
+      "id": "faq-sap-access",
+      "category": "Other Systems & Access",
+      "question": "به SAP دسترسی ندارم",
+      "summary": "عدم دسترسی به SAP",
+      "description": "به سامانه SAP دسترسی ندارم؛ درخواست ایجاد/فعال‌سازی دسترسی دارم.\nکد پرسنلی: [EMPLOYEE_ID]\nماژول / تراکنش مورد نیاز: [DETAILS]",
+      "keywords": ["sap", "access", "دسترسی", "سپ", "ماژول"]
+    }
+  ]
+}
