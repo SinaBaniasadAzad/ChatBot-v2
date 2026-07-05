@@ -99,7 +99,26 @@ python -m scripts.evaluate data/gold.jsonl
 python -m scripts.prepare_retrieval_dataset
 python -m scripts.benchmark_embeddings --model bm25     # سایر مدل‌ها: e5-large، bge-m3، qwen3-0.6b
 python -m scripts.benchmark_embeddings --report
+
+# ۷) ساختِ ایندکسِ retrieval برای production (برندهٔ بنچمارک: BGE-M3) و ارزیابیِ A/B
+#    (راهنمای گام‌به‌گامِ Kaggle: docs/kaggle_retrieval_eval.md)
+python -m scripts.build_retrieval_index
+python -m scripts.eval_incdb tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --workers 6 --no-retrieval --out preds_base.jsonl
+python -m scripts.eval_incdb tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --workers 6 --out preds_ret.jsonl
+python -m scripts.compare_eval_runs preds_base.jsonl preds_ret.jsonl
 ```
+
+### دسته‌بندیِ retrieval-augmented + گِیتِ اطمینان (پیش‌فرض: فعال)
+
+اگر `data/retrieval/index.npz` موجود باشد، هر دسته‌بندی: (۱) شبیه‌ترین تیکت‌های
+تاریخی را به‌عنوانِ **سابقهٔ برچسب‌خورده** به پیامِ کاربر تزریق می‌کند (system prompt
+ثابت می‌ماند → prompt cache حفظ است)، و (۲) رایِ kNN همسایه‌ها را به لایهٔ تصمیم
+می‌دهد. یک لایه «مبهم» است اگر: مدل خودش اعلام کند، شاهدش **در متنِ تیکت
+راستی‌آزمایی نشود** (شاهدِ توهمی = اطمینانِ کاذب)، یا **همسایگیِ خالصِ تاریخی
+(purity ≥ 0.8) مخالفِ برچسبِ مدل** رای بدهد → حداکثر ۲ سوالِ شفاف‌سازی، سپس ثبت
+با پرچمِ بازبینی. آستانه‌ها با env قابلِ تنظیم‌اند:
+`RETRIEVAL_SIM_FLOOR`، `KNN_DISAGREE_PURITY`، `EVIDENCE_VERIFICATION`،
+`RETRIEVAL_ENABLED=false` (خاموشی کامل).
 
 > **نکتهٔ Gradio:** رابطِ Gradio با API نسخهٔ ۴/۵ نوشته شده و روی **Gradio ۶ کار نمی‌کند**
 > (`type="messages"` و css/theme در Blocks حذف شده‌اند). Gradio عمداً در `requirements.txt`

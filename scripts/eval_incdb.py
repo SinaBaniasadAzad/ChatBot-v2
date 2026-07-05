@@ -37,7 +37,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.classifier.classifier import Classifier  # noqa: E402
-from src.classifier.decision import _is_ambiguous  # noqa: E402
+from src.classifier.decision import _is_ambiguous, decide  # noqa: E402
 
 
 def _norm_key(k: str) -> str:
@@ -136,9 +136,10 @@ def run_evaluation(
     out_path=None,
     errors_out=None,
     progress: bool = True,
+    use_retrieval: bool = True,
 ) -> dict:
     """Run the model over the tickets and return metrics (no display)."""
-    clf = Classifier()
+    clf = Classifier() if use_retrieval else Classifier(retriever=None)
     tax = clf.taxonomy
     _, label_map = _build_maps(tax)
     rows = load_rows(Path(data_path), limit, balanced, tax, frac=frac, seed=seed)
@@ -163,6 +164,8 @@ def run_evaluation(
     confusion = {l.id: defaultdict(lambda: defaultdict(int)) for l in tax.layers}
     full_total = full_correct = errors = 0
     conf = {"confident_total": 0, "confident_correct": 0, "flagged_total": 0, "flagged_correct": 0}
+    # همان بازی با گِیتِ جدید (شواهدِ راستی‌آزمایی‌شده + مخالفتِ kNN) — مسیرِ واقعیِ production
+    conf_gated = {"confident_total": 0, "confident_correct": 0, "flagged_total": 0, "flagged_correct": 0}
     tok: dict[str, int] = defaultdict(int)
     model_served = None
     t0 = time.perf_counter()
@@ -170,9 +173,17 @@ def run_evaluation(
     err_fh = Path(errors_out).open("w", encoding="utf-8") if errors_out else None
     n_wrong = 0
 
+    if clf.retriever is not None:
+        print("retrieval: ON (self-key excluded per ticket, near-self >=0.995 dropped)", file=sys.stderr)
+
     def run_one(row: dict):
         try:
-            out, meta = clf.classify(_field(row, "Summary", "summary"), _field(row, "Description", "description"))
+            # گاردِ نشت: خودِ تیکت (و شبه‌خودی‌ها) هرگز به‌عنوانِ سابقهٔ خودش بازیابی نشود.
+            out, meta = clf.classify(
+                _field(row, "Summary", "summary"),
+                _field(row, "Description", "description"),
+                exclude_keys=frozenset({str(row.get("Key"))}),
+            )
             return row, out, meta, None
         except Exception as e:  # one failing ticket must not kill the whole run
             return row, None, {}, str(e)
@@ -229,6 +240,22 @@ def run_evaluation(
                 bucket = "flagged" if flagged else "confident"
                 conf[bucket + "_total"] += 1
                 conf[bucket + "_correct"] += int(row_all_ok)
+                # گِیتِ جدید: با max_questions=0 هر ابهامی مستقیم needs_review می‌شود؛
+                # این دقیقاً همان تصمیمی است که production (قبل از پرسیدنِ سوال) می‌گیرد.
+                gated_flagged = True
+                if out is not None:
+                    ticket_text = (
+                        _field(row, "Summary", "summary")
+                        + "\n"
+                        + _field(row, "Description", "description")
+                    )
+                    gated_flagged = decide(
+                        out, tax, 0, 0,
+                        ticket_text=ticket_text, knn_votes=meta.get("knn_votes"),
+                    ).needs_review
+                gbucket = "flagged" if gated_flagged else "confident"
+                conf_gated[gbucket + "_total"] += 1
+                conf_gated[gbucket + "_correct"] += int(row_all_ok)
             if out_fh:
                 rec["correct"] = row_all_ok and row_has_all
                 out_fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -298,6 +325,8 @@ def run_evaluation(
         },
         "tokens": dict(tok),
         "confidence": conf,
+        "confidence_gated": conf_gated,
+        "retrieval_used": clf.retriever is not None,
         "wall_s": wall,
         "latency_ms_avg": (wall * 1000 / total if total else 0.0),
     }
@@ -322,9 +351,18 @@ def print_text_report(res: dict, price_in: float, price_cache: float, price_out:
     ft, fc = c.get("flagged_total", 0), c.get("flagged_correct", 0)
     tot = ct + ft
     if tot:
-        print("\n-- Accuracy by confidence (deployment strategy) --")
+        print("\n-- Accuracy by confidence (legacy gate: self-report + evidence presence) --")
         print(f"  Confident / auto:   coverage {ct/tot:.0%} ({ct})  |  accuracy {cc/ct:.1%}" if ct else "  Confident: 0")
         print(f"  Needs review / ask: {ft/tot:.0%} ({ft})  |  accuracy {fc/ft:.1%}" if ft else "  Needs review: 0")
+
+    g = res.get("confidence_gated", {})
+    gct, gcc = g.get("confident_total", 0), g.get("confident_correct", 0)
+    gft, gfc = g.get("flagged_total", 0), g.get("flagged_correct", 0)
+    gtot = gct + gft
+    if gtot:
+        print("\n-- Accuracy by NEW confidence gate (verified evidence + kNN precedent) --")
+        print(f"  Auto-routable:      coverage {gct/gtot:.0%} ({gct})  |  accuracy {gcc/gct:.1%}" if gct else "  Auto-routable: 0")
+        print(f"  Would ask/flag:     {gft/gtot:.0%} ({gft})  |  accuracy {gfc/gft:.1%}" if gft else "  Would ask/flag: 0")
 
     print("\n-- Per-class recall --")
     for L in res["layers"]:
@@ -355,11 +393,14 @@ def main() -> None:
     ap.add_argument("--price-in", type=float, default=0.14)
     ap.add_argument("--price-cache", type=float, default=0.0028)
     ap.add_argument("--price-out", type=float, default=0.28)
+    ap.add_argument("--no-retrieval", action="store_true",
+                    help="اجرای پایه بدونِ سابقه/گِیتِ kNN (برای مقایسهٔ A/B)")
     args = ap.parse_args()
 
     res = run_evaluation(
         args.data_path, limit=args.limit, balanced=args.balanced, frac=args.frac, seed=args.seed,
         workers=args.workers, out_path=args.out, errors_out=args.errors,
+        use_retrieval=not args.no_retrieval,
     )
     print_text_report(res, args.price_in, args.price_cache, args.price_out)
 

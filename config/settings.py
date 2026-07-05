@@ -33,6 +33,24 @@ class Settings:
     enable_self_consistency: bool = _get_bool("ENABLE_SELF_CONSISTENCY", False)
     self_consistency_samples: int = int(os.getenv("SELF_CONSISTENCY_SAMPLES", "3"))
 
+    # --- Retrieval-augmented classification (precedent few-shot + kNN gating) ---
+    # اگر ایندکس/وابستگی‌ها موجود نباشند، سیستم خودکار بدونِ retrieval کار می‌کند.
+    retrieval_enabled: bool = _get_bool("RETRIEVAL_ENABLED", True)
+    retrieval_index_path: Path = PROJECT_ROOT / os.getenv(
+        "RETRIEVAL_INDEX_PATH", "data/retrieval/index.npz"
+    )
+    retrieval_pool_path: Path = PROJECT_ROOT / os.getenv(
+        "RETRIEVAL_POOL_PATH", "data/retrieval/tickets_clean.jsonl"
+    )
+    retrieval_k_demos: int = int(os.getenv("RETRIEVAL_K_DEMOS", "6"))
+    retrieval_purity_k: int = int(os.getenv("RETRIEVAL_PURITY_K", "15"))
+    # کفِ شباهت: پایین‌تر از این، retrieval کلاً کنار می‌کشد (تیکتِ بی‌سابقه)
+    retrieval_sim_floor: float = float(os.getenv("RETRIEVAL_SIM_FLOOR", "0.40"))
+    # اگر همسایگیِ خالص (purity ≥ این آستانه) با برچسبِ LLM مخالف بود → ابهام → سوال
+    knn_disagree_purity: float = float(os.getenv("KNN_DISAGREE_PURITY", "0.80"))
+    # راستی‌آزماییِ شواهد: شاهدی که در متنِ تیکت نباشد، شاهد حساب نمی‌شود
+    evidence_verification: bool = _get_bool("EVIDENCE_VERIFICATION", True)
+
     # --- Interaction logging (برای تحلیل دقت و ساخت Gold Set) ---
     interaction_log_enabled: bool = _get_bool("INTERACTION_LOG_ENABLED", True)
     interaction_log_path: Path = PROJECT_ROOT / os.getenv(

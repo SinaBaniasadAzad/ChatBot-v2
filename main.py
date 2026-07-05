@@ -30,7 +30,7 @@ from scripts.report import evaluate_and_report
 
 res, figs = evaluate_and_report(
     os.path.join(PROJECT, "tests", "Ticketing_DB.jsonl"),
-    frac=0.2,
+    frac=0.1,
     workers=6,
     accuracy_html=os.path.join(PROJECT, "accuracy_report.html"),
     cost_html=os.path.join(PROJECT, "cost_report.html"),
@@ -39,5 +39,4 @@ res, figs = evaluate_and_report(
     errors_xlsx=os.path.join(PROJECT, "errors.xlsx"),
     show=False,
 )
-
 print("Done!")

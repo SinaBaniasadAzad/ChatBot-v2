@@ -50,8 +50,18 @@ class ConversationManager:
         output, meta = self.classifier.classify(
             session.summary, session.description, session.clarifications or None
         )
+        # متنِ کامل برای راستی‌آزماییِ شواهد (پاسخ‌های کاربر هم منبعِ معتبرِ شاهدند).
+        ticket_text = "\n".join(
+            [session.summary, session.description, *(a for _q, a in session.clarifications)]
+        )
         decision = decide(
-            output, self.taxonomy, session.questions_asked, settings.max_questions
+            output,
+            self.taxonomy,
+            session.questions_asked,
+            settings.max_questions,
+            ticket_text=ticket_text,
+            knn_votes=meta.get("knn_votes"),
+            verify_evidence=settings.evidence_verification,
         )
         log.info(
             "session=%s action=%s labels=%s asked=%d",
@@ -81,6 +91,7 @@ class ConversationManager:
             "evidence": {lid: d.evidence for lid, d in decision.layer_decisions.items()},
             "suggested_summary": output.suggested_summary,
             "needs_review": decision.needs_review,
+            "ambiguity_reasons": decision.ambiguity_reasons,  # چرا مبهم/بازبینی (تحلیل‌پذیر)
             "reasoning": output.reasoning,
         }
 
