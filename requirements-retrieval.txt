@@ -1,0 +1,8 @@
+# وابستگی‌های بنچمارکِ embedding (جدا از requirements.txt تا سرورِ production سبک بماند)
+# نصب:  pip install -r requirements-retrieval.txt
+# نکته: torch روی Kaggle از قبل نصب است؛ برای اجرای محلیِ CPU خودش نصب می‌شود.
+
+sentence-transformers>=3.0     # e5 / Qwen3-Embedding / gte
+transformers>=4.51             # لازم برای Qwen3-Embedding
+FlagEmbedding>=1.2.10          # BGE-M3 (dense + sparse)
+scipy>=1.10                    # ضربِ ماتریسِ اسپارسِ M3

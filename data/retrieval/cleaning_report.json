@@ -1,0 +1,315 @@
+{
+  "n_input": 1633,
+  "n_kept": 1553,
+  "n_missing_labels": 6,
+  "n_exact_duplicates_dropped": 74,
+  "duplicates": [
+    {
+      "key": "SR-22236",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-22194",
+      "duplicate_of": "SR-20461"
+    },
+    {
+      "key": "SR-27149",
+      "duplicate_of": "SR-27150"
+    },
+    {
+      "key": "SR-19054",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20510",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-27251",
+      "duplicate_of": "INC-20770"
+    },
+    {
+      "key": "SR-21549",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19208",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20561",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-24978",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-25142",
+      "duplicate_of": "SR-25140"
+    },
+    {
+      "key": "SR-20303",
+      "duplicate_of": "SR-18864"
+    },
+    {
+      "key": "SR-20155",
+      "duplicate_of": "INC-16493"
+    },
+    {
+      "key": "SR-25141",
+      "duplicate_of": "SR-25140"
+    },
+    {
+      "key": "SR-19463",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19036",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-26735",
+      "duplicate_of": "SR-26710"
+    },
+    {
+      "key": "SR-20607",
+      "duplicate_of": "SR-18864"
+    },
+    {
+      "key": "SR-18844",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-20132",
+      "duplicate_of": "SR-25509"
+    },
+    {
+      "key": "INC-19401",
+      "duplicate_of": "SR-24649"
+    },
+    {
+      "key": "SR-19035",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-22977",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-25200",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19132",
+      "duplicate_of": "SR-18864"
+    },
+    {
+      "key": "SR-19027",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-25042",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-24570",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20999",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19591",
+      "duplicate_of": "SR-18864"
+    },
+    {
+      "key": "INC-17567",
+      "duplicate_of": "INC-17569"
+    },
+    {
+      "key": "SR-25164",
+      "duplicate_of": "SR-25167"
+    },
+    {
+      "key": "SR-19212",
+      "duplicate_of": "SR-19314"
+    },
+    {
+      "key": "SR-24436",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-16778",
+      "duplicate_of": "SR-20348"
+    },
+    {
+      "key": "INC-19019",
+      "duplicate_of": "INC-19020"
+    },
+    {
+      "key": "SR-25098",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-20383",
+      "duplicate_of": "INC-20384"
+    },
+    {
+      "key": "SR-19866",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19122",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20017",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-24660",
+      "duplicate_of": "SR-24649"
+    },
+    {
+      "key": "SR-19136",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-22676",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-24245",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-20622",
+      "duplicate_of": "INC-20621"
+    },
+    {
+      "key": "SR-27148",
+      "duplicate_of": "SR-27150"
+    },
+    {
+      "key": "SR-20444",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20120",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-26741",
+      "duplicate_of": "SR-26710"
+    },
+    {
+      "key": "SR-19028",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-18828",
+      "duplicate_of": "INC-15635"
+    },
+    {
+      "key": "SR-22530",
+      "duplicate_of": "SR-22531"
+    },
+    {
+      "key": "SR-22399",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20485",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-27209",
+      "duplicate_of": "SR-23010"
+    },
+    {
+      "key": "SR-24160",
+      "duplicate_of": "SR-24569"
+    },
+    {
+      "key": "SR-21000",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-16584",
+      "duplicate_of": "INC-16640"
+    },
+    {
+      "key": "SR-21198",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20670",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-25003",
+      "duplicate_of": "SR-24961"
+    },
+    {
+      "key": "SR-23012",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "INC-17126",
+      "duplicate_of": "SR-20802"
+    },
+    {
+      "key": "SR-21571",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-20866",
+      "duplicate_of": "SR-20791"
+    },
+    {
+      "key": "SR-27355",
+      "duplicate_of": "INC-20808"
+    },
+    {
+      "key": "SR-24605",
+      "duplicate_of": "SR-24569"
+    },
+    {
+      "key": "INC-16714",
+      "duplicate_of": "INC-16640"
+    },
+    {
+      "key": "SR-27353",
+      "duplicate_of": "INC-20806"
+    },
+    {
+      "key": "SR-24827",
+      "duplicate_of": "INC-19477"
+    },
+    {
+      "key": "SR-20656",
+      "duplicate_of": "SR-24862"
+    },
+    {
+      "key": "SR-19422",
+      "duplicate_of": "SR-25073"
+    },
+    {
+      "key": "SR-19123",
+      "duplicate_of": "SR-25073"
+    }
+  ],
+  "n_truncated": 12,
+  "n_with_attachment_refs": 249,
+  "avg_chars_before": 203.1,
+  "avg_chars_after": 179.9,
+  "label_distribution": {
+    "incident + erp": 540,
+    "incident + staff": 158,
+    "service_request + erp": 508,
+    "service_request + staff": 347
+  },
+  "max_chars": 1200
+}

@@ -94,6 +94,11 @@ python -m pytest -q
 
 # ۵) ارزیابی دقت روی Gold Set
 python -m scripts.evaluate data/gold.jsonl
+
+# ۶) بنچمارکِ embedding برای retrieval-based few-shot (راهنمای Kaggle: docs/embedding_benchmark.md)
+python -m scripts.prepare_retrieval_dataset
+python -m scripts.benchmark_embeddings --model bm25     # سایر مدل‌ها: e5-large، bge-m3، qwen3-0.6b
+python -m scripts.benchmark_embeddings --report
 ```
 
 > **نکتهٔ Gradio:** رابطِ Gradio با API نسخهٔ ۴/۵ نوشته شده و روی **Gradio ۶ کار نمی‌کند**

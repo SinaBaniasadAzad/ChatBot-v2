@@ -8,3 +8,7 @@ logs/
 .pytest_cache/
 .idea/
 .vscode/
+
+# آرتیفکت‌های حجیم/بازتولیدپذیرِ بنچمارک embedding (دیتاستِ پاک‌شده در مخزن می‌ماند)
+data/retrieval/*.npz
+data/retrieval/results/
