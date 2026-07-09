@@ -192,7 +192,7 @@ def main() -> None:
                           f"همسایه‌ها: {[nb['key'] for nb in w['neighbors']]}",
                 )
                 n += int(item_id is not None)
-          python  print(f"{n} مورد واردِ صفِ بازبینی شد (source=retrieval_audit).")
+                print(f"{n} مورد واردِ صفِ بازبینی شد (source=retrieval_audit).")
 
 
 if __name__ == "__main__":
