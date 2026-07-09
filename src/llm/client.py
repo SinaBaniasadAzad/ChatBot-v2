@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from openai import OpenAI
 
 from config.settings import settings
+from src.observability import generation as obs_generation
+from src.observability.cost import cost_details, usage_details
 from src.utils.logging import get_logger
 
 log = get_logger("llm.client")
@@ -55,32 +57,52 @@ class DeepSeekClient:
             {"role": "user", "content": user},
         ]
 
-        last_err: Exception | None = None
-        for attempt in range(1, settings.max_retries + 1):
-            try:
-                t0 = time.perf_counter()
-                resp = self._client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    response_format={"type": "json_object"},
-                    temperature=temperature,
-                )
-                latency_ms = (time.perf_counter() - t0) * 1000
-                content = resp.choices[0].message.content or ""
-                data = json.loads(content)  # JSON mode فقط نحو معتبر را تضمین می‌کند
-                usage = resp.usage.model_dump() if resp.usage else {}
-                return LLMResponse(
-                    data=data, model=model, latency_ms=latency_ms, usage=usage, raw=content
-                )
-            except json.JSONDecodeError as e:
-                last_err = e
-                log.warning("خروجی JSON معتبر نبود (تلاش %d/%d).", attempt, settings.max_retries)
-            except Exception as e:  # خطای شبکه/API
-                last_err = e
-                log.warning("خطای فراخوانی API (تلاش %d/%d): %s", attempt, settings.max_retries, e)
-            time.sleep(min(2 ** attempt, 8))  # backoff نمایی ساده
+        # spanِ generation: پیام‌ها، usage با تفکیکِ cache hit/miss، هزینهٔ دلاری و retryها.
+        with obs_generation(
+            "deepseek-completion",
+            model=model,
+            input=messages,
+            model_parameters={"temperature": temperature, "response_format": "json_object"},
+        ) as gen:
+            last_err: Exception | None = None
+            for attempt in range(1, settings.max_retries + 1):
+                try:
+                    t0 = time.perf_counter()
+                    resp = self._client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        response_format={"type": "json_object"},
+                        temperature=temperature,
+                    )
+                    latency_ms = (time.perf_counter() - t0) * 1000
+                    content = resp.choices[0].message.content or ""
+                    data = json.loads(content)  # JSON mode فقط نحو معتبر را تضمین می‌کند
+                    usage = resp.usage.model_dump() if resp.usage else {}
+                    gen.update(
+                        output=data,
+                        usage_details=usage_details(usage),
+                        cost_details=cost_details(usage),
+                        metadata={"latency_ms": round(latency_ms, 1), "attempts": attempt},
+                    )
+                    return LLMResponse(
+                        data=data, model=model, latency_ms=latency_ms, usage=usage, raw=content
+                    )
+                except json.JSONDecodeError as e:
+                    last_err = e
+                    log.warning("خروجی JSON معتبر نبود (تلاش %d/%d).", attempt, settings.max_retries)
+                except Exception as e:  # خطای شبکه/API
+                    last_err = e
+                    log.warning("خطای فراخوانی API (تلاش %d/%d): %s", attempt, settings.max_retries, e)
+                time.sleep(min(2 ** attempt, 8))  # backoff نمایی ساده
 
-        raise RuntimeError(f"فراخوانی DeepSeek پس از {settings.max_retries} تلاش ناموفق بود: {last_err}")
+            gen.update(
+                level="ERROR",
+                status_message=str(last_err),
+                metadata={"attempts": settings.max_retries},
+            )
+            raise RuntimeError(
+                f"فراخوانی DeepSeek پس از {settings.max_retries} تلاش ناموفق بود: {last_err}"
+            )
 
     def majority_vote(
         self,

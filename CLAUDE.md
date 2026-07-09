@@ -48,6 +48,9 @@
 | `src/classifier/{classifier,decision,output_parser,few_shot}.py` | هستهٔ دسته‌بندی و تصمیم. |
 | `scripts/eval_incdb.py` | ارزیابیِ دقت روی دیتاستِ خام (single-shot). |
 | `scripts/report.py` | داشبوردِ بصریِ نتایج. |
+| `src/observability/` | ردیابیِ Langfuse (trace/هزینه/score) — اختیاری و شکست‌ناپذیر. **راهنما: `docs/observability.md`** |
+| `src/review/` + `web/review.html` | صفِ بازبینیِ انسانی (`/review`)؛ جلساتِ needs_review خودکار وارد می‌شوند. |
+| `scripts/{langfuse_dataset,run_experiment,eval_retrieval}.py` | دیتاست/Experimentهای Langfuse و ممیزیِ کیفیتِ retrieval. |
 
 ---
 
@@ -145,4 +148,8 @@ python -m pytest -q
 - اجرای واقعی نیازمندِ `DEEPSEEK_API_KEY` در `.env` است؛ منطقِ ساختِ taxonomy/prompt/few-shot
   بدونِ کلید هم اجرا/تست می‌شود.
 - نام مدل و آستانه‌ها در `config/settings.py` و `.env`.
-- **هرگز** `.env` یا `logs/interactions.jsonl` (حاویِ PII) را commit نکن.
+- **هرگز** `.env` یا `logs/` (interactions.jsonl و review.db — حاویِ PII) را commit نکن.
+- **Observability:** ردیابیِ Langfuse (self-hosted در `deploy/langfuse`) با کلیدهای
+  `LANGFUSE_*` فعال می‌شود و بدونِ آن‌ها سیستم بی‌تغییر کار می‌کند. هر تغییرِ
+  taxonomy/prompt/آستانه اثرانگشتِ پیکربندی را عوض می‌کند → مقایسهٔ نسخه‌ها با
+  `scripts/run_experiment.py` روی دیتاستِ Langfuse. جزئیات: `docs/observability.md`.

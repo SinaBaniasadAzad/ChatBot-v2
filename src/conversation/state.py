@@ -22,6 +22,7 @@ class Session:
     status: Status | None = None
     pending_question: str | None = None
     result: dict | None = None
+    last_trace_id: str | None = None  # traceِ آخرین دور (لینکِ Langfuse در صفِ بازبینی)
 
     def add_clarification(self, question: str, answer: str) -> None:
         self.clarifications.append((question, answer))

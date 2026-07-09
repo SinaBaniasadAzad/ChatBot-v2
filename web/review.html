@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Review Queue — Ticket Assistant</title>
+  <link rel="icon" href="/api/logo" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #667085;
+      --border: #e4e7ec; --accent: #2563eb; --accent-soft: #eff4ff;
+      --ok: #067647; --ok-soft: #ecfdf3; --warn: #b54708; --warn-soft: #fffaeb;
+      --bad: #b42318; --bad-soft: #fef3f2;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101216; --card: #181b21; --text: #e8eaee; --muted: #98a2b3;
+        --border: #2a2f38; --accent: #6ea1ff; --accent-soft: #1c2740;
+        --ok: #6ee7a8; --ok-soft: #12291c; --warn: #f7c463; --warn-soft: #2b2214;
+        --bad: #ff9a8f; --bad-soft: #2d1715;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 15px/1.55 Inter, Vazirmatn, system-ui, sans-serif;
+    }
+    header {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--card);
+      position: sticky; top: 0; z-index: 5;
+    }
+    header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+    header a.back { color: var(--accent); text-decoration: none; font-size: 13.5px; }
+    .stats { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+    .stat {
+      font-size: 12.5px; padding: 4px 10px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent); font-weight: 600;
+    }
+    .stat.ok { background: var(--ok-soft); color: var(--ok); }
+    .stat.warn { background: var(--warn-soft); color: var(--warn); }
+    main {
+      display: grid; grid-template-columns: minmax(300px, 400px) 1fr;
+      gap: 18px; padding: 18px 22px; max-width: 1500px; margin: 0 auto;
+    }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .list-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+    select, input[type=text], textarea {
+      font: inherit; color: var(--text); background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+    }
+    #items { max-height: 74vh; overflow-y: auto; }
+    .item {
+      padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .item:hover { background: var(--accent-soft); }
+    .item.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+    .item .t { font-weight: 600; font-size: 14px; unicode-bidi: plaintext; }
+    .item .m { color: var(--muted); font-size: 12px; display: flex; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+      background: var(--warn-soft); color: var(--warn);
+    }
+    .badge.resolved { background: var(--ok-soft); color: var(--ok); }
+    .badge.dismissed { background: var(--bad-soft); color: var(--bad); }
+    #detail { padding: 18px; min-height: 300px; }
+    #detail .empty { color: var(--muted); text-align: center; padding: 80px 0; }
+    h3 { margin: 18px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .ticket-text {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; white-space: pre-wrap; unicode-bidi: plaintext; text-align: start;
+    }
+    .kv { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 10px; font-size: 13px; unicode-bidi: plaintext;
+    }
+    .chip b { color: var(--accent); }
+    .labels-form { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+    .labels-form label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+    .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+    button {
+      font: inherit; font-weight: 600; border: 0; border-radius: 9px;
+      padding: 9px 18px; cursor: pointer;
+    }
+    .btn-resolve { background: var(--accent); color: #fff; }
+    .btn-dismiss { background: var(--bad-soft); color: var(--bad); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    a.trace-link { color: var(--accent); font-size: 13.5px; }
+    textarea { width: 100%; min-height: 60px; margin-top: 6px; }
+    .toast {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: var(--card); padding: 10px 20px;
+      border-radius: 10px; font-weight: 600; opacity: 0; transition: opacity .25s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔍 Review Queue</h1>
+    <a class="back" href="/">← Ticket Assistant</a>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="list-head">
+        <select id="f-status">
+          <option value="pending">Pending</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
+        <select id="f-source">
+          <option value="">All sources</option>
+          <option value="production">Production</option>
+          <option value="eval">Evaluation</option>
+          <option value="retrieval_audit">Retrieval audit</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+      <div id="items"></div>
+    </section>
+
+    <section class="panel" id="detail"><div class="empty">Select an item to review</div></section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    "use strict";
+    const $ = (s) => document.querySelector(s);
+    let taxonomy = null, current = null;
+
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { msg = (await res.json()).detail || msg; } catch (_) {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    function toast(msg) {
+      const t = $("#toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2400);
+    }
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function renderStats(stats) {
+      const by = stats.by_status || {};
+      const agree = stats.model_human_agreement;
+      $("#stats").innerHTML = `
+        <span class="stat warn">pending: ${by.pending || 0}</span>
+        <span class="stat ok">resolved: ${by.resolved || 0}</span>
+        <span class="stat">dismissed: ${by.dismissed || 0}</span>
+        ${agree != null ? `<span class="stat ok">model↔human agreement: ${(agree * 100).toFixed(0)}%</span>` : ""}`;
+    }
+
+    async function loadQueue() {
+      const status = $("#f-status").value, source = $("#f-source").value;
+      const q = new URLSearchParams({ status, limit: 100 });
+      if (source) q.set("source", source);
+      const data = await api(`/api/review/queue?${q}`);
+      renderStats(data.stats);
+      const box = $("#items");
+      box.innerHTML = data.items.length ? "" : `<div class="empty" style="padding:40px;color:var(--muted);text-align:center">Queue is empty 🎉</div>`;
+      for (const it of data.items) {
+        const el = document.createElement("div");
+        el.className = "item";
+        el.dataset.id = it.id;
+        const labels = Object.entries(it.predicted_labels || {}).map(([k, v]) => `${k}=${v}`).join(" · ");
+        el.innerHTML = `
+          <div class="t">${esc(it.summary || it.description.slice(0, 80))}</div>
+          <div class="m">
+            <span class="badge ${it.status}">${it.status}</span>
+            <span>#${it.id} · ${esc(it.source)}</span>
+            <span>${esc(labels)}</span>
+          </div>`;
+        el.addEventListener("click", () => openItem(it.id));
+        box.appendChild(el);
+      }
+    }
+
+    function labelSelect(layer, selected) {
+      const opts = layer.labels.map(
+        (l) => `<option value="${esc(l.id)}" ${l.id === selected ? "selected" : ""}>${esc(l.name)} (${esc(l.id)})</option>`
+      ).join("");
+      return `<div><label>${esc(layer.name)}</label><select data-layer="${esc(layer.id)}">${opts}</select></div>`;
+    }
+
+    async function openItem(id) {
+      current = await api(`/api/review/items/${id}`);
+      document.querySelectorAll(".item").forEach((e) =>
+        e.classList.toggle("active", e.dataset.id == String(id)));
+      const it = current;
+      const clar = (it.clarifications || []).map(
+        (c) => `<div class="chip">Q: ${esc(c.q)}<br/>A: ${esc(c.a)}</div>`).join("");
+      const reasons = Object.entries(it.ambiguity_reasons || {}).map(
+        ([k, v]) => `<span class="chip"><b>${esc(k)}</b>: ${esc((v || []).join(", "))}</span>`).join("");
+      const evidence = Object.entries(it.evidence || {}).map(
+        ([k, v]) => `<span class="chip"><b>${esc(k)}</b>: ${esc((v || []).join("، "))}</span>`).join("");
+      const predicted = Object.entries(it.predicted_labels || {}).map(
+        ([k, v]) => `<span class="chip"><b>${esc(k)}</b>: ${esc(v)}</span>`).join("");
+      const closed = it.status !== "pending";
+      $("#detail").innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="badge ${it.status}">${it.status}</span>
+          <strong>#${it.id}</strong>
+          <span style="color:var(--muted)">${esc(it.source)}${it.ticket_key ? " · " + esc(it.ticket_key) : ""}</span>
+          ${it.trace_url ? `<a class="trace-link" href="${esc(it.trace_url)}" target="_blank" rel="noopener">Open trace in Langfuse ↗</a>` : ""}
+        </div>
+        <h3>Ticket</h3>
+        <div class="ticket-text">${esc(it.summary)}\n\n${esc(it.description)}</div>
+        ${clar ? `<h3>Clarifications</h3><div class="kv">${clar}</div>` : ""}
+        <h3>Model prediction</h3><div class="kv">${predicted || "—"}</div>
+        ${reasons ? `<h3>Why flagged</h3><div class="kv">${reasons}</div>` : ""}
+        ${evidence ? `<h3>Verified evidence</h3><div class="kv">${evidence}</div>` : ""}
+        ${it.model_reasoning ? `<h3>Model reasoning</h3><div class="ticket-text">${esc(it.model_reasoning)}</div>` : ""}
+        ${closed ? `
+          <h3>Human labels</h3><div class="kv">${Object.entries(it.gold_labels || {}).map(
+            ([k, v]) => `<span class="chip"><b>${esc(k)}</b>: ${esc(v)}</span>`).join("") || "—"}</div>
+          <p style="color:var(--muted)">by ${esc(it.reviewer || "?")} at ${esc(it.resolved_at || "")}${it.notes ? " — " + esc(it.notes) : ""}</p>
+        ` : `
+          <h3>Correct labels</h3>
+          <div class="labels-form" id="labels-form">
+            ${taxonomy.layers.map((L) => labelSelect(L, (it.predicted_labels || {})[L.id])).join("")}
+          </div>
+          <h3>Notes (optional)</h3>
+          <textarea id="notes" placeholder="Why was the model wrong? Any labeling-convention insight…"></textarea>
+          <div class="actions">
+            <input type="text" id="reviewer" placeholder="Your name" value="${esc(localStorage.getItem("reviewer") || "")}" />
+            <button class="btn-resolve" id="btn-resolve">✓ Resolve with these labels</button>
+            <button class="btn-dismiss" id="btn-dismiss">Dismiss</button>
+          </div>
+        `}`;
+      if (!closed) {
+        $("#btn-resolve").addEventListener("click", () => closeItem("resolve"));
+        $("#btn-dismiss").addEventListener("click", () => closeItem("dismiss"));
+      }
+    }
+
+    async function closeItem(kind) {
+      const reviewer = $("#reviewer").value.trim();
+      if (!reviewer) { toast("Enter your name first"); return; }
+      localStorage.setItem("reviewer", reviewer);
+      const notes = $("#notes").value.trim() || null;
+      const body = { reviewer, notes };
+      if (kind === "resolve") {
+        body.labels = {};
+        document.querySelectorAll("#labels-form select").forEach((s) => {
+          body.labels[s.dataset.layer] = s.value;
+        });
+      }
+      $("#btn-resolve").disabled = $("#btn-dismiss").disabled = true;
+      try {
+        await api(`/api/review/items/${current.id}/${kind}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        toast(kind === "resolve" ? "Saved — labels recorded & scored ✓" : "Dismissed");
+        await loadQueue();
+        $("#detail").innerHTML = `<div class="empty">Select an item to review</div>`;
+      } catch (e) {
+        toast("Error: " + e.message);
+        $("#btn-resolve").disabled = $("#btn-dismiss").disabled = false;
+      }
+    }
+
+    (async function init() {
+      try {
+        taxonomy = await api("/api/review/taxonomy");
+        await loadQueue();
+      } catch (e) {
+        $("#items").innerHTML = `<div style="padding:20px;color:var(--bad)">${esc(e.message)}</div>`;
+      }
+      $("#f-status").addEventListener("change", loadQueue);
+      $("#f-source").addEventListener("change", loadQueue);
+    })();
+  </script>
+</body>
+</html>

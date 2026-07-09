@@ -7,6 +7,10 @@ uvicorn[standard]>=0.29
 httpx>=0.27          # TestClient برای تست‌های آفلاین API
 pytest>=8.0
 
+# Observability (Langfuse self-hosted؛ نبودش فقط ردیابی را خاموش می‌کند)
+# facade در src/observability/tracing.py با API نسخهٔ ۴ نوشته شده است.
+langfuse>=4.13,<5
+
 # گزارش‌گیری (داشبوردِ PNG و خروجیِ Excelِ خطاها)
 matplotlib>=3.7
 numpy>=1.24

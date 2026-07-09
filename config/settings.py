@@ -57,6 +57,26 @@ class Settings:
         "INTERACTION_LOG_PATH", "logs/interactions.jsonl"
     )
 
+    # --- Observability / Tracing (Langfuse self-hosted) ---
+    # نبودِ کلیدها یا بستهٔ langfuse فقط ردیابی را خاموش می‌کند؛ مسیرِ اصلی هرگز نمی‌افتد.
+    observability_enabled: bool = _get_bool("OBSERVABILITY_ENABLED", True)
+    langfuse_host: str = os.getenv("LANGFUSE_HOST", "http://localhost:3000")
+    langfuse_public_key: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+    langfuse_secret_key: str = os.getenv("LANGFUSE_SECRET_KEY", "")
+    # جداسازیِ محیط‌ها در UI (production / evaluation / experiment / development)
+    observability_environment: str = os.getenv("OBSERVABILITY_ENVIRONMENT", "production")
+    langfuse_sample_rate: float = float(os.getenv("LANGFUSE_SAMPLE_RATE", "1.0"))
+
+    # --- DeepSeek pricing (دلار به‌ازای هر ۱M توکن؛ «مفروضات» — با نرخِ روز تأیید شود) ---
+    # پیش‌فرض‌ها با src/reporting/cost.py هم‌خوان‌اند؛ env برای به‌روزرسانی بدونِ تغییرِ کد.
+    price_input_per_1m: float = float(os.getenv("DEEPSEEK_PRICE_INPUT_PER_1M", "0.14"))
+    price_cache_hit_per_1m: float = float(os.getenv("DEEPSEEK_PRICE_CACHE_HIT_PER_1M", "0.0028"))
+    price_output_per_1m: float = float(os.getenv("DEEPSEEK_PRICE_OUTPUT_PER_1M", "0.28"))
+
+    # --- Review queue (صفِ بازبینیِ انسانی؛ SQLite محلی، حاوی PII → داخل logs/) ---
+    review_queue_enabled: bool = _get_bool("REVIEW_QUEUE_ENABLED", True)
+    review_db_path: Path = PROJECT_ROOT / os.getenv("REVIEW_DB_PATH", "logs/review.db")
+
     # --- Ticket submissions (خروجی نهایی؛ حاوی PII، داخل logs/ بماند) ---
     tickets_log_path: Path = PROJECT_ROOT / os.getenv(
         "TICKETS_LOG_PATH", "logs/tickets.jsonl"

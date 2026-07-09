@@ -155,13 +155,21 @@ class TicketRetriever:
         sim_floor: float | None = None,
         exclude_keys: frozenset[str] | set[str] | None = None,
         drop_self_sim: float | None = None,  # در ارزیابی: حذفِ شبه‌خودی‌ها (مثلاً 0.995)
+        explain: dict | None = None,  # observability: دلیلِ کناره‌گیری و پارامترهای مؤثر
     ) -> RetrievalResult | None:
         k_demos = k_demos or settings.retrieval_k_demos
         purity_k = purity_k or settings.retrieval_purity_k
         sim_floor = settings.retrieval_sim_floor if sim_floor is None else sim_floor
 
         text = self.build_query_text(summary, description, clarifications)
+        if explain is not None:
+            explain.update(
+                {"query_text": text, "k_demos": k_demos, "purity_k": purity_k,
+                 "sim_floor": sim_floor, "model": self.model_name, "pool_size": len(self.rows)}
+            )
         if not text:
+            if explain is not None:
+                explain["abstain_reason"] = "empty_query"
             return None
         q = self._encode(text)
         sims = self.emb @ q
@@ -179,6 +187,10 @@ class TicketRetriever:
             picked.append(int(i))
 
         if not picked or float(sims[picked[0]]) < sim_floor:
+            if explain is not None:
+                explain["abstain_reason"] = "below_sim_floor" if picked else "no_candidates"
+                if picked:
+                    explain["top_similarity"] = round(float(sims[picked[0]]), 4)
             return None  # تیکتِ بی‌سابقه → سابقهٔ بی‌ربط تزریق نکن
 
         votes: dict[str, LayerVote] = {}

@@ -33,7 +33,16 @@
       "PowerShell($env:PYTHONUTF8='1'; & \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest -q 2>$null | Select-Object -Last 3)",
       "PowerShell($env:PYTHONUTF8='1'; & \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest -q 2>$null | Select-Object -Last 2)",
       "PowerShell($env:PYTHONUTF8='1'; & \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest -q tests/test_retrieval_integration.py::test_retriever_excludes_keys_and_near_self 2>$null | Select-Object -First 25)",
-      "PowerShell($env:PYTHONUTF8='1'; & \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -c \"from src.retrieval.retriever import maybe_build_retriever; r = maybe_build_retriever\\(\\); print\\('retriever:', r\\); from src.api.app import app; print\\('API OK, routes:', len\\(app.routes\\)\\)\")"
+      "PowerShell($env:PYTHONUTF8='1'; & \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -c \"from src.retrieval.retriever import maybe_build_retriever; r = maybe_build_retriever\\(\\); print\\('retriever:', r\\); from src.api.app import app; print\\('API OK, routes:', len\\(app.routes\\)\\)\")",
+      "Read(//c/Users/sina/PycharmProjects/ChatBot-v2/.venv/Scripts/**)",
+      "Bash(\"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" --version)",
+      "Bash(py -3.12 --version)",
+      "Bash(\"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\pip.exe\" install *)",
+      "Bash('C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe' -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 'C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe' -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 \"C:\\\\Users\\\\sina\\\\PycharmProjects\\\\ChatBot-v2\\\\.venv\\\\Scripts\\\\python.exe\" -m pytest -q)",
+      "Bash(rm -f logs/review.db logs/review.db-wal logs/review.db-shm)",
+      "Bash(ls logs/)"
     ]
   }
 }
