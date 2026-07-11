@@ -1,6 +1,6 @@
 """بارگذاری پیکربندی از .env و مسیرهای پروژه."""
 from __future__ import annotations
-1010
+10101
 import os
 from pathlib import Path
 
