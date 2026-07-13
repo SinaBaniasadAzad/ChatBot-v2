@@ -93,6 +93,14 @@ class TicketRetriever:
         self._encode_fn = encode_fn
         self._model = None
         self._lock = threading.Lock()
+        # پروبِ وابستگیِ انکودر همین‌جا: اگر نصب نیست، همین‌جا خطا بده تا
+        # maybe_build_retriever یک‌بار retrieval را غیرفعال کند (نه خطا در هر درخواست).
+        if self._encode_fn is None:
+            if self.model_kind == "m3":
+                import FlagEmbedding  # noqa: F401
+                import torch  # noqa: F401
+            else:
+                import sentence_transformers  # noqa: F401
         log.info("ایندکسِ retrieval بارگذاری شد: %d تیکت، مدل=%s", len(self.rows), self.model_name)
 
     # ---- encoding ----

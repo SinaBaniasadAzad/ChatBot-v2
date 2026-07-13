@@ -28,6 +28,26 @@ class Settings:
     # --- Robustness ---
     request_timeout: float = float(os.getenv("REQUEST_TIMEOUT", "60"))
     max_retries: int = int(os.getenv("MAX_RETRIES", "3"))
+    # پس از این تعداد خطای پیاپیِ LLM، مدارشکن باز می‌شود و به‌جای انتظارِ طولانی،
+    # بلافاصله «سرویسِ دسته‌بندی در دسترس نیست» برمی‌گردد (ثبتِ دستیِ تیکت ممکن می‌ماند).
+    cb_failure_threshold: int = int(os.getenv("CB_FAILURE_THRESHOLD", "3"))
+    cb_cooldown_seconds: float = float(os.getenv("CB_COOLDOWN_SECONDS", "30"))
+    # استخرِ اتصالِ HTTP به DeepSeek — با فرضِ بارِ اوج ~۱۰ فراخوانِ همزمان، ۱۶ کافی است.
+    llm_max_connections: int = int(os.getenv("LLM_MAX_CONNECTIONS", "16"))
+
+    # --- Sessions (درون‌حافظه‌ای؛ الزام: یک workerِ uvicorn) ---
+    session_ttl_minutes: float = float(os.getenv("SESSION_TTL_MINUTES", "60"))
+
+    # --- HTTP (SPA هم‌مبدأ است؛ CORS فقط اگر مبدأ جدا لازم شد) ---
+    cors_origins: list[str] = [
+        o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
+    ]
+    # توکنِ اندپوینت‌های ادمین (جستجو/بازیابیِ تیکت). خالی = اندپوینت‌ها غیرفعال.
+    admin_api_token: str = os.getenv("ADMIN_API_TOKEN", "")
+
+    # --- Logging ---
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
+    log_format: str = os.getenv("LOG_FORMAT", "text")  # production: json (در ایمیج تنظیم شده)
 
     # --- Ambiguity detection ---
     enable_self_consistency: bool = _get_bool("ENABLE_SELF_CONSISTENCY", False)
@@ -51,16 +71,20 @@ class Settings:
     # راستی‌آزماییِ شواهد: شاهدی که در متنِ تیکت نباشد، شاهد حساب نمی‌شود
     evidence_verification: bool = _get_bool("EVIDENCE_VERIFICATION", True)
 
-    # --- Interaction logging (برای تحلیل دقت و ساخت Gold Set) ---
+    # --- Interaction logging (جدول interactions در DB؛ برای تحلیل دقت و Gold Set) ---
     interaction_log_enabled: bool = _get_bool("INTERACTION_LOG_ENABLED", True)
-    interaction_log_path: Path = PROJECT_ROOT / os.getenv(
-        "INTERACTION_LOG_PATH", "logs/interactions.jsonl"
-    )
 
-    # --- Ticket submissions (خروجی نهایی؛ حاوی PII، داخل logs/ بماند) ---
-    tickets_log_path: Path = PROJECT_ROOT / os.getenv(
-        "TICKETS_LOG_PATH", "logs/tickets.jsonl"
-    )
+    # --- Datastore (SQLite/WAL: تیکت‌ها + لاگِ تعاملات؛ حاوی PII) ---
+    db_path: Path = PROJECT_ROOT / os.getenv("APP_DB_PATH", "data/app.db")
+
+    # --- Data retention (اجرای روزانه داخلِ اپ + CLI: python -m scripts.db_maintenance) ---
+    retention_enabled: bool = _get_bool("RETENTION_ENABLED", True)
+    # حذفِ کاملِ ردیف‌های interactions قدیمی‌تر از این (روز). 0 = هرگز.
+    interaction_retention_days: int = int(os.getenv("INTERACTION_RETENTION_DAYS", "90"))
+    # ناشناس‌سازیِ هویتِ تیکت‌ها (نام/کد پرسنلی) پس از این مدت (روز). 0 = هرگز.
+    ticket_anonymize_days: int = int(os.getenv("TICKET_ANONYMIZE_DAYS", "365"))
+    # حذفِ کاملِ تیکت‌های قدیمی (روز). 0 = هرگز (پیش‌فرض: نگه می‌داریم، فقط ناشناس می‌شوند).
+    ticket_delete_days: int = int(os.getenv("TICKET_DELETE_DAYS", "0"))
 
     # --- Paths ---
     taxonomy_path: Path = PROJECT_ROOT / "config" / "taxonomy.yaml"

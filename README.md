@@ -9,6 +9,9 @@
 > دسته‌ها در `config/taxonomy.yaml` تعریف شده‌اند. **افزودن دستهٔ جدید = افزودن یک بلوک
 > به همان فایل**، بدون هیچ تغییری در کد.
 
+> 🚀 **استقرارِ production (Docker، پیکربندی، بکاپ، rollback، چک‌لیستِ تحویل به زیرساخت):**
+> [deploy.md](deploy.md)
+
 ---
 
 ## معماری
@@ -57,10 +60,12 @@ ChatBot/
 ```
 
 ## لاگِ تعاملات
-هر دور دسته‌بندی و هر جلسهٔ کامل به‌صورت یک خط JSON در `logs/interactions.jsonl`
+هر دور دسته‌بندی و هر جلسهٔ کامل در جدولِ `interactions` (SQLite در `APP_DB_PATH`)
 ذخیره می‌شود: تیکت، **سوال‌های تکمیلی + پاسخ کاربر**، خروجی خام مدل (کاندیدا + شواهد)،
 تصمیم نهایی، و متادیتای LLM (مدل، latency، مصرف توکن). این داده‌ها برای تحلیل دقت،
-ساخت Gold Set و تیون prompt حیاتی‌اند. با `INTERACTION_LOG_ENABLED=false` خاموش می‌شود.
+ساخت Gold Set و تیون prompt حیاتی‌اند. با `INTERACTION_LOG_ENABLED=false` خاموش می‌شود؛
+سیاستِ نگه‌داری (پیش‌فرض ۹۰ روز) خودکار اعمال می‌شود. خروجیِ JSONL برای ابزارهای تحلیل:
+`python -m scripts.export_interactions --out interactions.jsonl`
 
 ---
 
@@ -132,8 +137,9 @@ python -m scripts.compare_eval_runs preds_base.jsonl preds_ret.jsonl
 - **FAQ (قالب‌های آماده):** ۲۰ درخواستِ پرتکرار در `data/faq.json` — ویرایش بدون تغییرِ کد.
   جستجوی لحظه‌ای با نرمال‌سازیِ فارسی/عربی (ي→ی، ك→ک، ارقام) در `src/faq.py` و همان منطق
   سمتِ کلاینت.
-- **ثبتِ نهایی:** `POST /api/tickets` → افزودن به `logs/tickets.jsonl` (append-only، حاویِ
-  PII، در gitignore) با شمارهٔ پیگیریِ ترتیبی — آمادهٔ اتصال به ITSM واقعی.
+- **ثبتِ نهایی:** `POST /api/tickets` → جدولِ `tickets` در SQLite (`APP_DB_PATH`، حاویِ PII،
+  در gitignore) با شمارهٔ پیگیریِ ترتیبیِ تراکنشی + جستجوی تمام‌متنیِ فارسی (FTS5) —
+  آمادهٔ اتصال به ITSM واقعی.
 - **اندپوینت‌های جدید:** `GET /api/faq`، `POST /api/tickets`، `GET /api/logo`؛ مسیرهای
   `classify/*` بدونِ تغییر.
 - فایل‌های UI: `web/index.html`، `web/styles.css`، `web/app.js` — بدونِ build step؛ تمِ
@@ -173,7 +179,8 @@ python -m scripts.perf_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
 از لاگِ تولید **بدونِ نیاز به API** هم ساخته می‌شود:
 
 ```bash
-python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
+python -m scripts.export_interactions --out interactions.jsonl
+python -m scripts.cost_report --from-log interactions.jsonl --out cost_report.html
 ```
 
 نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند

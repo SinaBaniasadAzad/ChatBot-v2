@@ -58,7 +58,11 @@
     if (!res.ok) {
       let detail = '';
       try { detail = (await res.json()).detail || ''; } catch { /* ignore */ }
-      throw new Error(detail || `Request failed (${res.status})`);
+      const message = typeof detail === 'string' ? detail : (detail.message || '');
+      const err = new Error(message || `Request failed (${res.status})`);
+      err.status = res.status;
+      err.code = typeof detail === 'object' ? detail.code : undefined;
+      throw err;
     }
     return res.json();
   }
@@ -435,6 +439,22 @@
   }
 
   function onTriageError(e, retryFn) {
+    if (e.code === 'llm_unavailable' || e.status === 503) {
+      // حالتِ degraded: دسته‌بندی در دسترس نیست، ولی ثبتِ تیکت مستقل است —
+      // با needs_review=true ثبت می‌شود و تیم پشتیبانی دستی مسیریابی می‌کند.
+      state.result = { labels: {}, needs_review: true };
+      addMsg('bot', `
+        ⚠️ The smart assistant is temporarily unavailable, but <b>you can still submit
+        your ticket now</b> — a support agent will route it manually.
+        <div class="result-card">
+          <div class="note-warn">⚠️ <b>Manual routing.</b> Your ticket will be reviewed
+          and categorized by the support team.</div>
+        </div>`);
+      $('confirm-bar').hidden = false;
+      $('submit-ticket-btn').focus();
+      toast('Assistant unavailable — you can submit without classification.', retryFn);
+      return;
+    }
     addMsg('bot', `⚠️ ${esc("We couldn't reach the assistant. Please try again.")}`);
     toast(e.message || 'Network error', retryFn);
     $('confirm-bar').hidden = true;

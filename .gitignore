@@ -12,3 +12,9 @@ logs/
 # آرتیفکت‌های حجیم/بازتولیدپذیرِ بنچمارک embedding (دیتاستِ پاک‌شده در مخزن می‌ماند)
 data/retrieval/*.npz
 data/retrieval/results/
+
+# پایگاه‌دادهٔ SQLite (حاوی PII) + بکاپ‌ها — هرگز commit نشود
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/backups/

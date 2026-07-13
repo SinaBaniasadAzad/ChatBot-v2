@@ -60,8 +60,8 @@ import re  # noqa: E402
 
 import gradio as gr  # noqa: E402
 
-from config.settings import settings  # noqa: E402
 from src.conversation.manager import ConversationManager  # noqa: E402
+from src.db.database import get_database  # noqa: E402
 from src.faq import load_faq, search_faq  # noqa: E402
 from src.tickets.store import TicketStore  # noqa: E402
 
@@ -76,7 +76,7 @@ except Exception as exc:
         "→ Ensure the DEEPSEEK_API_KEY secret exists and notebook internet is ON."
     )
 TAX = MANAGER.taxonomy
-STORE = TicketStore(settings.tickets_log_path)
+STORE = TicketStore(get_database())
 FAQ_CATEGORIES, FAQ_ITEMS = load_faq()
 _FAQ_BY_QUESTION = {it.question: it for it in FAQ_ITEMS}
 

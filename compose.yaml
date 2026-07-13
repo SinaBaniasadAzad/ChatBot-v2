@@ -1,0 +1,24 @@
+# اجرای یک‌فرمانی روی سرور (Docker Compose v2):
+#   docker compose up -d          (بیلد محلی)
+#   docker compose logs -f chatbot
+# جزئیات و مسیرِ بدونِ Docker: deploy.md
+services:
+  chatbot:
+    build:
+      context: .
+      args:
+        APP_VERSION: "${APP_VERSION:-dev}"
+    image: "ghcr.io/sinabaniasadazad/chatbot-v2:${APP_VERSION:-latest}"
+    env_file: .env
+    environment:
+      APP_DB_PATH: /data/app.db
+      LOG_FORMAT: json
+    ports:
+      - "8000:8000"
+    volumes:
+      - chatbot-data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  chatbot-data:

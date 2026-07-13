@@ -1,6 +1,12 @@
-"""وضعیت یک مکالمه/جلسه. در نسخهٔ تولید می‌توان این را در Redis نگه داشت."""
+"""وضعیت یک مکالمه/جلسه — درون‌حافظه‌ای با TTL (الزام: یک workerِ uvicorn).
+
+جلسه‌ها کوتاه‌عمرند (چند دقیقه)؛ manager جلسه‌های بی‌حرکت را پس از
+SESSION_TTL_MINUTES پاک می‌کند. اگر روزی چند پروسه لازم شد، این لایه با Redis
+جایگزین می‌شود بدون تغییرِ رابط.
+"""
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -22,6 +28,10 @@ class Session:
     status: Status | None = None
     pending_question: str | None = None
     result: dict | None = None
+    touched_at: float = field(default_factory=time.monotonic)  # برای evictionِ TTL
+
+    def touch(self) -> None:
+        self.touched_at = time.monotonic()
 
     def add_clarification(self, question: str, answer: str) -> None:
         self.clarifications.append((question, answer))
