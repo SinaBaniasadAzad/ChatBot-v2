@@ -1,6 +1,6 @@
 """
 داشبوردِ دقتِ حرفه‌ای (برای ارائه) — روی نتایجِ eval_incdb.run_evaluation.
-1
+12
 نمایش:
   • کارت‌های KPI: دقتِ کل (هر دو لایه) + دقتِ هر لایه
   • نمودارِ recall هر کلاس (Incident / Service Request / ERP / Staff)
