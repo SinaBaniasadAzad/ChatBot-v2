@@ -1,6 +1,6 @@
 """
 هستهٔ دسته‌بندی: یک «دور» کامل (یک تیکت -> یک ClassificationOutput).
-zazazaz
+zazazaza
 این کلاس از وضعیت مکالمه و سقف سوال‌ها چیزی نمی‌داند؛ آن منطق در conversation/manager است.
 """
 from __future__ import annotations
