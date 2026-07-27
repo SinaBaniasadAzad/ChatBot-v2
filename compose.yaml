@@ -14,7 +14,7 @@ services:
       APP_DB_PATH: /data/app.db
       LOG_FORMAT: json
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - chatbot-data:/data
     restart: unless-stopped

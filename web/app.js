@@ -1,13 +1,12 @@
 /* ============================================================
    Service Desk — Ticket Assistant (SPA)
-   Vanilla JS, no build step. Talks to the FastAPI backend:
-     POST /classify/start, POST /classify/answer,
-     GET /api/faq, POST /api/tickets
+   Chat-first flow: bot greets → collects subject → collects
+   description → classifies via backend.
    ============================================================ */
 (() => {
   'use strict';
 
-  // ---------- Label metadata (mirrors config/taxonomy.yaml ids) ----------
+  // ---------- Label metadata ----------
   const LAYER_CAPTIONS = { layer1: 'Type', layer2: 'Domain' };
   const LABELS = {
     incident:        { name: 'Incident',        color: 'var(--c-incident)' },
@@ -15,23 +14,29 @@
     erp:             { name: 'ERP',             color: 'var(--c-erp)' },
     staff:           { name: 'Staff',           color: 'var(--c-staff)' },
   };
-  const labelName = (id) =>
+  const labelName  = (id) =>
     (LABELS[id] && LABELS[id].name) ||
     (id ? id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—');
   const labelColor = (id) => (LABELS[id] && LABELS[id].color) || 'var(--text-3)';
 
-  // ---------- State ----------
-  const LS_IDENTITY = 'tta.identity';
+  // ---------- Chat-flow state machine ----------
+  // Stages: 'awaiting_subject' → 'awaiting_description' → 'classifying' → 'done'
+  const chatFlow = {
+    stage: 'awaiting_subject',
+  };
+
+  // ---------- App state ----------
   const LS_THEME = 'tta.theme';
   const state = {
-    identity: null,           // {employeeId, firstName, lastName}
+    identity: { employeeId: '264790', firstName: 'Sina', lastName: 'BaniasadAzad' },
     faq: { categories: [], items: [] },
     activeCategory: null,
     query: '',
     ticket: { summary: '', description: '', templateName: null },
     sessionId: null,
-    result: null,             // final classification result
-    placeholderWarned: false,
+    selectedFaqId: null,
+    resultFeedback: null,
+    result: null,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -39,16 +44,16 @@
     String(s ?? '').replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // ---------- Persian/Arabic-aware normalization (mirror of src/faq.py) ----------
+  // ---------- Normalization ----------
   const CHAR_MAP = { 'ي': 'ی', 'ك': 'ک', 'ة': 'ه', 'أ': 'ا', 'إ': 'ا', 'ؤ': 'و', '‌': ' ' };
   for (let i = 0; i < 10; i++) {
-    CHAR_MAP[String.fromCharCode(0x06f0 + i)] = String(i); // ۰-۹
-    CHAR_MAP[String.fromCharCode(0x0660 + i)] = String(i); // ٠-٩
+    CHAR_MAP[String.fromCharCode(0x06f0 + i)] = String(i);
+    CHAR_MAP[String.fromCharCode(0x0660 + i)] = String(i);
   }
   const normalize = (s) =>
     String(s || '').replace(/./g, (c) => CHAR_MAP[c] ?? c).toLowerCase();
 
-  // ---------- API helper ----------
+  // ---------- API ----------
   async function api(path, body) {
     const res = await fetch(path, {
       method: body === undefined ? 'GET' : 'POST',
@@ -92,294 +97,30 @@
   }
   function initTheme() {
     const saved = localStorage.getItem(LS_THEME);
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+    const prefersDark = window.matchMedia('(prefers-color-scheme: light)').matches;
+    applyTheme(saved || 'light');
     $('theme-btn').addEventListener('click', () =>
-      applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+      applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
   }
 
-  // ---------- Brand logo (company logo with graceful fallback) ----------
+  // ---------- Logo ----------
   function initLogo() {
     const img = new Image();
     img.alt = '';
-    img.onload = () => { $('brand-logo').replaceChildren(img); };
+    img.onload  = () => { $('brand-logo').replaceChildren(img); };
     img.onerror = () => { $('brand-logo').textContent = '🎫'; };
     img.src = '/api/logo';
   }
 
-  // ---------- Views & stepper ----------
-  const VIEWS = ['identity', 'home', 'compose', 'triage', 'done'];
-  const STEP_OF_VIEW = { home: 1, compose: 1, triage: 2, done: 3 };
-
+  // ---------- Views ----------
   function showView(name) {
-    VIEWS.forEach((v) => { $(`view-${v}`).hidden = v !== name; });
-    const step = STEP_OF_VIEW[name];
-    $('stepper').hidden = !step;
-    if (step) {
-      document.querySelectorAll('.step').forEach((el) => {
-        const n = Number(el.dataset.step);
-        el.classList.toggle('active', n === step);
-        el.classList.toggle('complete', n < step);
-      });
-    }
-    const focusTargets = {
-      identity: 'f-empid', home: 'faq-search', compose: 't-subject', triage: null, done: null,
-    };
-    const fid = focusTargets[name];
-    if (fid) setTimeout(() => $(fid).focus(), 60);
+    ['compose', 'done'].forEach((v) => {
+      $(`view-${v}`).hidden = v !== name;
+    });
     window.scrollTo({ top: 0 });
   }
 
-  // ---------- Identity ----------
-  function loadIdentity() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(LS_IDENTITY) || 'null');
-      if (raw && raw.employeeId && raw.firstName && raw.lastName) return raw;
-    } catch { /* ignore */ }
-    return null;
-  }
-
-  function renderUserChip() {
-    const id = state.identity;
-    const chip = $('user-chip');
-    if (!id) { chip.hidden = true; return; }
-    chip.hidden = false;
-    $('user-avatar').textContent =
-      (id.firstName[0] || '').toUpperCase() + (id.lastName[0] || '').toUpperCase();
-    $('user-name').textContent = `${id.firstName} ${id.lastName}`;
-    $('user-id').textContent = `ID ${id.employeeId}`;
-    $('home-greeting').textContent = `Hi ${id.firstName} — how can we help?`;
-  }
-
-  function initIdentityForm() {
-    const form = $('identity-form');
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const empid = $('f-empid').value.trim();
-      const first = $('f-first').value.trim();
-      const last = $('f-last').value.trim();
-      const okId = /^\d{3,10}$/.test(empid);
-      const okFirst = first.length >= 2;
-      const okLast = last.length >= 2;
-      setFieldError('f-empid', 'err-empid', !okId);
-      setFieldError('f-first', 'err-first', !okFirst);
-      setFieldError('f-last', 'err-last', !okLast);
-      if (!(okId && okFirst && okLast)) return;
-      state.identity = { employeeId: empid, firstName: first, lastName: last };
-      localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
-      renderUserChip();
-      showView('home');
-    });
-    $('user-chip').addEventListener('click', () => {
-      const id = state.identity || {};
-      $('f-empid').value = id.employeeId || '';
-      $('f-first').value = id.firstName || '';
-      $('f-last').value = id.lastName || '';
-      showView('identity');
-    });
-  }
-
-  function setFieldError(inputId, errId, isInvalid) {
-    $(errId).hidden = !isInvalid;
-    $(inputId).closest('.field').classList.toggle('invalid', isInvalid);
-    $(inputId).setAttribute('aria-invalid', String(isInvalid));
-  }
-
-  // ---------- FAQ ----------
-  async function loadFaq() {
-    try {
-      const data = await api('/api/faq');
-      state.faq.categories = data.categories || [];
-      state.faq.items = (data.items || []).map((it) => ({
-        ...it,
-        blob: normalize([it.question, it.category, ...(it.keywords || [])].join(' ')),
-      }));
-    } catch {
-      state.faq = { categories: [], items: [] };
-    }
-    renderChips();
-    renderFaqList();
-  }
-
-  function renderChips() {
-    const row = $('chip-row');
-    row.replaceChildren();
-    const mk = (label, value) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(state.activeCategory === value));
-      b.textContent = label;
-      b.addEventListener('click', () => {
-        state.activeCategory = value;
-        renderChips();
-        renderFaqList();
-      });
-      return b;
-    };
-    row.appendChild(mk('All', null));
-    state.faq.categories.forEach((c) => row.appendChild(mk(c, c)));
-  }
-
-  // Highlight query terms: normalization is 1:1 per character, so match
-  // positions on the normalized string map directly onto the original.
-  function highlight(text, terms) {
-    if (!terms.length) return esc(text);
-    const norm = normalize(text);
-    const ranges = [];
-    terms.forEach((t) => {
-      let from = 0;
-      while (t) {
-        const i = norm.indexOf(t, from);
-        if (i === -1) break;
-        ranges.push([i, i + t.length]);
-        from = i + t.length;
-      }
-    });
-    if (!ranges.length) return esc(text);
-    ranges.sort((a, b) => a[0] - b[0]);
-    let html = '';
-    let pos = 0;
-    ranges.forEach(([s, e]) => {
-      if (s < pos) { e > pos && (html += `<mark>${esc(text.slice(pos, e))}</mark>`, pos = e); return; }
-      html += esc(text.slice(pos, s)) + `<mark>${esc(text.slice(s, e))}</mark>`;
-      pos = e;
-    });
-    return html + esc(text.slice(pos));
-  }
-
-  function renderFaqList() {
-    const terms = normalize(state.query).split(/\s+/).filter(Boolean);
-    const items = state.faq.items.filter((it) =>
-      (!state.activeCategory || it.category === state.activeCategory) &&
-      terms.every((t) => it.blob.includes(t)));
-
-    const list = $('faq-list');
-    list.replaceChildren();
-    items.forEach((it) => {
-      const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'faq-item';
-      btn.innerHTML = `
-        <span class="faq-item-main">
-          <p class="faq-q" dir="auto">${highlight(it.question, terms)}</p>
-          <span class="faq-cat">${esc(it.category)}</span>
-        </span>
-        <span class="faq-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
-        </span>`;
-      btn.addEventListener('click', () => openCompose(it));
-      li.appendChild(btn);
-      list.appendChild(li);
-    });
-
-    const n = items.length;
-    $('faq-count').textContent = n
-      ? `${n} common request${n === 1 ? '' : 's'}${state.query ? ' matching your search' : ''}`
-      : '';
-    $('faq-empty').hidden = n > 0;
-  }
-
-  function initSearch() {
-    const input = $('faq-search');
-    input.addEventListener('input', () => {
-      state.query = input.value;
-      $('search-clear').hidden = !input.value;
-      renderFaqList();
-    });
-    $('search-clear').addEventListener('click', () => {
-      input.value = '';
-      state.query = '';
-      $('search-clear').hidden = true;
-      renderFaqList();
-      input.focus();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && !$('view-home').hidden &&
-          !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
-        e.preventDefault();
-        input.focus();
-      }
-    });
-  }
-
-  // ---------- Compose ----------
-  function openCompose(faqItem) {
-    state.placeholderWarned = false;
-    $('compose-error').hidden = true;
-    resetAnalyzeButton();
-    if (faqItem) {
-      $('t-subject').value = faqItem.summary || faqItem.question;
-      $('t-desc').value = faqItem.description || '';
-      $('template-name').textContent = faqItem.question;
-      $('template-banner').hidden = false;
-    } else {
-      $('t-subject').value = state.ticket.summary || '';
-      $('t-desc').value = state.ticket.description || '';
-      $('template-banner').hidden = true;
-    }
-    updateCounters();
-    showView('compose');
-  }
-
-  function updateCounters() {
-    $('subject-count').textContent = String($('t-subject').value.length);
-    $('desc-count').textContent = String($('t-desc').value.length);
-  }
-
-  function resetAnalyzeButton() {
-    setBusy('analyze-btn', false);
-    $('analyze-btn').querySelector('.btn-label').textContent = 'Analyze & continue';
-  }
-
-  function setBusy(btnId, busy) {
-    const btn = $(btnId);
-    btn.disabled = busy;
-    btn.querySelector('.btn-spinner').hidden = !busy;
-  }
-
-  function initCompose() {
-    $('t-subject').addEventListener('input', updateCounters);
-    $('t-desc').addEventListener('input', () => {
-      updateCounters();
-      state.placeholderWarned = false;
-      resetAnalyzeButton();
-      $('compose-error').hidden = true;
-    });
-    $('analyze-btn').addEventListener('click', onAnalyze);
-    $('t-subject').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); onAnalyze(); }
-    });
-  }
-
-  function onAnalyze() {
-    const summary = $('t-subject').value.trim();
-    const description = $('t-desc').value.trim();
-    const err = $('compose-error');
-    if (!summary && !description) {
-      err.textContent = 'Please fill in the subject or the description before continuing.';
-      err.hidden = false;
-      return;
-    }
-    const leftovers = (summary + ' ' + description).match(/\[[A-Z_ ]{2,}\]/g);
-    if (leftovers && !state.placeholderWarned) {
-      state.placeholderWarned = true;
-      err.textContent =
-        `Your ticket still contains template placeholders (${leftovers.slice(0, 3).join(', ')}). ` +
-        'Replace them with your details, or press the button again to continue anyway.';
-      err.hidden = false;
-      $('analyze-btn').querySelector('.btn-label').textContent = 'Analyze anyway';
-      return;
-    }
-    err.hidden = true;
-    state.ticket.summary = summary;
-    state.ticket.description = description;
-    startTriage();
-  }
-
-  // ---------- Triage (chat) ----------
+  // ---------- Chat helpers ----------
   function addMsg(role, html, note) {
     const chat = $('chat');
     const msg = document.createElement('div');
@@ -399,49 +140,149 @@
     return addMsg('bot', '<span class="typing"><i></i><i></i><i></i></span>');
   }
 
-  async function startTriage() {
-    setBusy('analyze-btn', true);
-    showView('triage');
-    $('chat').replaceChildren();
-    $('reply-bar').hidden = true;
-    $('confirm-bar').hidden = true;
-    state.sessionId = null;
-    state.result = null;
+  // ---------- Chat input ----------
+  function setChatInputBusy(busy) {
+    const input = $('chat-input');
+    const btn   = $('chat-send');
+    input.disabled = busy;
+    btn.disabled   = busy;
+    btn.querySelector('.btn-spinner').hidden = !busy;
+  }
 
-    const { summary, description } = state.ticket;
-    addMsg('user',
-      `${summary ? `<b>${esc(summary)}</b>` : ''}${summary && description ? '<br><br>' : ''}${esc(description)}`);
+  function initChatInput() {
+    const form  = $('chat-form');
+    const input = $('chat-input');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      input.value = '';
+      autoResizeTextarea(input);
+      handleChatInput(value);
+    });
+
+    // Ctrl/Cmd+Enter or Enter (no shift) sends; Shift+Enter inserts newline
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    input.addEventListener('input', () => autoResizeTextarea(input));
+  }
+
+  function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+  }
+
+  // ---------- Reset button visibility ----------
+  function showResetButton() {
+    $('chat-reset-btn').hidden = false;
+  }
+  function hideResetButton() {
+    $('chat-reset-btn').hidden = true;
+  }
+
+  // ---------- Chat flow ----------
+  async function handleChatInput(value) {
+    addMsg('user', esc(value));
+    showResetButton();      // once the user sends anything, show the reset button
+    setChatInputBusy(true);
+
+    if (chatFlow.stage === 'awaiting_subject') {
+      state.ticket.summary = value;
+      chatFlow.stage = 'awaiting_description';
+      renderFaqList();      // re-render FAQ to dim items (stage changed)
+      await simulateBotDelay(() =>
+        addMsg('bot', 'لطفا توضیحات مشکل خود را بصورت واضح بیان کنید.')
+      );
+      setChatInputBusy(false);
+      return;
+    }
+
+    if (chatFlow.stage === 'awaiting_description') {
+      state.ticket.description = value;
+      chatFlow.stage = 'classifying';
+      await startClassification();
+      return;
+    }
+
+    if (chatFlow.stage === 'need_info') {
+      await sendTriageReply(value);
+      return;
+    }
+
+    setChatInputBusy(false);
+  }
+
+  function simulateBotDelay(fn, ms = 600) {
+    return new Promise((resolve) => {
+      setTimeout(() => { fn(); resolve(); }, ms);
+    });
+  }
+
+  function applyFaqTemplate(item) {
+  const summary = item.summary || item.question || '';
+  const description = item.description || '';
+
+  state.ticket.summary = summary;
+  state.ticket.description = description;
+  state.ticket.templateName = item.id || null;
+  state.selectedFaqId = item.id || null;
+
+  const input = $('chat-input');
+
+  if (chatFlow.stage === 'awaiting_subject') {
+    addMsg('user', esc(summary));
+    chatFlow.stage = 'awaiting_description';
+    addMsg('bot', 'لطفا توضیحات مشکل خود را بصورت واضح بیان کنید');
+  }
+
+  input.value = description;
+  autoResizeTextarea(input);
+  input.focus();
+}
+
+  // ---------- Classification (triage) ----------
+  async function startClassification() {
     const typing = addTyping();
     try {
-      const resp = await api('/classify/start', { summary, description });
+      const resp = await api('/classify/start', {
+        summary: state.ticket.summary,
+        description: state.ticket.description,
+      });
       typing.remove();
       handleClassifyResponse(resp);
     } catch (e) {
       typing.remove();
-      onTriageError(e, startTriage);
+      onTriageError(e, startClassification);
     } finally {
-      setBusy('analyze-btn', false);
+      setChatInputBusy(false);
     }
   }
 
-  async function sendReply(answer) {
-    addMsg('user', esc(answer));
-    $('reply-bar').hidden = true;
+  async function sendTriageReply(answer) {
     const typing = addTyping();
     try {
-      const resp = await api('/classify/answer', { session_id: state.sessionId, answer });
+      const resp = await api('/classify/answer', {
+        session_id: state.sessionId,
+        answer,
+      });
       typing.remove();
       handleClassifyResponse(resp);
     } catch (e) {
       typing.remove();
-      onTriageError(e, () => { $('reply-bar').hidden = false; $('reply-input').focus(); });
+      onTriageError(e, () => setChatInputBusy(false));
+    } finally {
+      setChatInputBusy(false);
     }
   }
 
   function onTriageError(e, retryFn) {
     if (e.code === 'llm_unavailable' || e.status === 503) {
-      // حالتِ degraded: دسته‌بندی در دسترس نیست، ولی ثبتِ تیکت مستقل است —
-      // با needs_review=true ثبت می‌شود و تیم پشتیبانی دستی مسیریابی می‌کند.
       state.result = { labels: {}, needs_review: true };
       addMsg('bot', `
         ⚠️ The smart assistant is temporarily unavailable, but <b>you can still submit
@@ -451,84 +292,116 @@
           and categorized by the support team.</div>
         </div>`);
       $('confirm-bar').hidden = false;
-      $('submit-ticket-btn').focus();
       toast('Assistant unavailable — you can submit without classification.', retryFn);
       return;
     }
     addMsg('bot', `⚠️ ${esc("We couldn't reach the assistant. Please try again.")}`);
     toast(e.message || 'Network error', retryFn);
-    $('confirm-bar').hidden = true;
   }
 
   function handleClassifyResponse(resp) {
     state.sessionId = resp.session_id;
     if (resp.status === 'need_info') {
+      chatFlow.stage = 'need_info';
       addMsg('bot', esc(resp.question || ''),
         `Quick question ${(resp.questions_asked || 0) + 1} of 2 — this helps route your ticket correctly.`);
-      $('reply-bar').hidden = false;
-      $('reply-input').value = '';
-      $('reply-input').focus();
+      setChatInputBusy(false);
       return;
     }
+    chatFlow.stage = 'classified';
     state.result = resp.result || {};
     renderResultCard(state.result);
     $('confirm-bar').hidden = false;
     $('submit-ticket-btn').focus();
+    setChatInputBusy(false);
   }
 
   function renderResultCard(result) {
     const labels = result.labels || {};
-    const badges = Object.entries(LAYER_CAPTIONS).map(([layer, cap]) => `
-      <div class="badge" style="background:${labelColor(labels[layer])}">
-        <div class="cap">${cap}</div>
-        <div class="val">${esc(labelName(labels[layer]))}</div>
-      </div>`).join('');
-    const note = result.needs_review
-      ? `<div class="note-warn">⚠️ <b>Will be double-checked.</b> The assistant wasn't fully sure,
-           so a support agent will verify the routing after you submit. You can still submit now.</div>`
-      : `<div class="note-ok">✅ Classified with high confidence — ready to submit.</div>`;
-    addMsg('bot', `
-      Here's how your ticket will be routed:
-      <div class="result-card">
-        <div class="badge-row">${badges}</div>
-        ${note}
-      </div>`);
+    const type = labelName(labels.layer1);
+    const domain = labelName(labels.layer2);
+
+    const msg = addMsg('bot', `بر اساس توضیحات شما، من درخواست شما را به این شکل دسته‌بندی کردم:
+            <span class="result-status">
+      <div class="result-inline">
+        <span class="result-pill result-pill-type" style="background:${labelColor(labels.layer1)}">
+          <span class="result-key">Type:</span>
+          <span class="result-value">${esc(type)}</span>
+        </span>
+        <span class="result-pill result-pill-domain" style="background:${labelColor(labels.layer2)}">
+          <span class="result-key">Domain:</span>
+          <span class="result-value">${esc(domain)}</span>
+        </span>
+      </div>
+      <div class="feedback-row">
+        <button class="feedback-mini" type="button" data-feedback="like" aria-label="Like this result" title="Like">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 11v9H4v-9zm3 9h7.2c1 0 1.8-.7 2-1.6l1.5-7.5c.1-.7 0-1.4-.4-1.9-.4-.6-1-.9-1.7-.9H13V5.5c0-1-.8-1.8-1.8-1.8-.5 0-1 .2-1.3.6L9.3 6.1c-.2.2-.3.5-.3.8v2.6c0 .7-.3 1.4-.8 1.9L10 20z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="feedback-mini" type="button" data-feedback="dislike" aria-label="Dislike this result" title="Dislike">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M17 13V4h3v9zm-3-9H6.8c-1 0-1.8.7-2 1.6L3.3 13.1c-.1.7 0 1.4.4 1.9.4.6 1 .9 1.7.9H11v2.6c0 1 .8 1.8 1.8 1.8.5 0 1-.2 1.3-.6l.6-.8c.2-.2.3-.5.3-.8v-2.6c0-.7.3-1.4.8-1.9L14 4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    `);
+
+    msg.querySelectorAll('[data-feedback]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.resultFeedback = btn.dataset.feedback;
+        msg.querySelectorAll('[data-feedback]').forEach((b) => {
+          b.classList.toggle('active', b === btn);
+        });
+      });
+    });
   }
 
   // ---------- Submit ----------
   async function submitTicket() {
-    const id = state.identity;
+    const id     = state.identity;
     const result = state.result || {};
+
+    const btn = $('submit-ticket-btn');
+    if (!btn) return;
+
     setBusy('submit-ticket-btn', true);
     try {
       const record = await api('/api/tickets', {
-        employee_id: id.employeeId,
-        first_name: id.firstName,
-        last_name: id.lastName,
-        summary: state.ticket.summary || result.suggested_summary || '',
-        description: state.ticket.description,
-        labels: result.labels || {},
+        employee_id:  id.employeeId,
+        first_name:   id.firstName,
+        last_name:    id.lastName,
+        summary:      state.ticket.summary || result.suggested_summary || '',
+        description:  state.ticket.description,
+        labels:       result.labels || {},
         needs_review: Boolean(result.needs_review),
-        session_id: state.sessionId,
+        session_id:   state.sessionId,
       });
-      renderDone(record);
+
+      renderDone(record || {});
       showView('done');
     } catch (e) {
+      console.error('submitTicket failed:', e);
       toast(e.message || 'Could not submit the ticket.', submitTicket);
     } finally {
       setBusy('submit-ticket-btn', false);
     }
   }
 
+  function setBusy(btnId, busy) {
+    const btn = $(btnId);
+    btn.disabled = busy;
+    btn.querySelector('.btn-spinner').hidden = !busy;
+  }
+
   function renderDone(record) {
-    $('ref-number').textContent = record.reference;
+    $('ref-number').textContent  = record.reference;
     $('done-subject').textContent = record.summary || '—';
     const labels = record.labels || {};
     $('done-routing').innerHTML = Object.entries(LAYER_CAPTIONS).map(([layer]) =>
       `<span class="routing-pill" style="background:${labelColor(labels[layer])}">${esc(labelName(labels[layer]))}</span>`
     ).join('');
-    $('done-by').textContent =
-      `${record.first_name} ${record.last_name} (ID ${record.employee_id})`;
+    $('done-by').textContent   = `${record.first_name} ${record.last_name} (ID ${record.employee_id})`;
     $('done-time').textContent = new Date(record.submitted_at).toLocaleString();
     $('done-review-note').hidden = !record.needs_review;
   }
@@ -545,54 +418,198 @@
     });
   }
 
-  // ---------- Global actions ----------
+  // ---------- Start over ----------
   function startOver() {
     state.ticket = { summary: '', description: '', templateName: null };
+    state.selectedFaqId = null;
     state.sessionId = null;
+    state.resultFeedback = null;
     state.result = null;
+    chatFlow.stage = 'awaiting_subject';
+
+    $('chat').replaceChildren();
+    $('confirm-bar').hidden = true;
+    $('chat-input').value = '';
+    autoResizeTextarea($('chat-input'));
+    setChatInputBusy(false);
+
     $('faq-search').value = '';
     state.query = '';
     $('search-clear').hidden = true;
-    state.activeCategory = null;
-    renderChips();
     renderFaqList();
-    showView('home');
+
+    showView('compose');
+    botGreet();
   }
 
   function initActions() {
     document.querySelectorAll('[data-action]').forEach((el) => {
       el.addEventListener('click', () => {
         const action = el.dataset.action;
-        if (action === 'compose-blank') openCompose(null);
-        else if (action === 'back-home') showView('home');
-        else if (action === 'edit-ticket') openCompose(null);
-        else if (action === 'start-over') startOver();
+        if (action === 'start-over') startOver();
       });
     });
-    $('reply-bar').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const v = $('reply-input').value.trim();
-      if (v) sendReply(v);
-    });
     $('submit-ticket-btn').addEventListener('click', submitTicket);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !$('view-compose').hidden) showView('home');
+    $('chat-reset-btn').addEventListener('click', startOver);
+  }
+
+  // ---------- FAQ (sidebar, read-only hints) ----------
+  async function loadFaq() {
+    try {
+      const data = await api('/api/faq');
+      state.faq.categories = data.categories || [];
+      state.faq.items = (data.items || []).map((it) => ({
+        ...it,
+        blob: normalize([it.question, it.category, ...(it.keywords || [])].join(' ')),
+      }));
+    } catch {
+      state.faq = { categories: [], items: [] };
+    }
+    renderFaqList();
+  }
+
+  function highlight(text, terms) {
+    if (!terms.length) return esc(text);
+    const norm = normalize(text);
+    const ranges = [];
+    terms.forEach((t) => {
+      let from = 0;
+      while (t) {
+        const i = norm.indexOf(t, from);
+        if (i === -1) break;
+        ranges.push([i, i + t.length]);
+        from = i + t.length;
+      }
     });
+    if (!ranges.length) return esc(text);
+    ranges.sort((a, b) => a[0] - b[0]);
+    let html = '', pos = 0;
+    ranges.forEach(([s, e]) => {
+      if (s < pos) { e > pos && (html += `<mark>${esc(text.slice(pos, e))}</mark>`, pos = e); return; }
+      html += esc(text.slice(pos, s)) + `<mark>${esc(text.slice(s, e))}</mark>`;
+      pos = e;
+    });
+    return html + esc(text.slice(pos));
+  }
+
+  function renderFaqList() {
+    const terms = normalize(state.query).split(/\s+/).filter(Boolean);
+    const items = terms.length === 0
+      ? state.faq.items
+      : state.faq.items.filter((it) => terms.every((t) => it.blob.includes(t)));
+
+    const list = $('faq-list');
+    list.replaceChildren();
+    items.forEach((it) => {
+      const li  = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type      = 'button';
+      btn.className = 'faq-item';
+      // Dim items that can't be used in the current stage
+      btn.dataset.unavailable = chatFlow.stage !== 'awaiting_subject' ? 'true' : 'false';
+      btn.innerHTML = `
+        <span class="faq-item-main">
+          <p class="faq-q" dir="auto">${highlight(it.question, terms)}</p>
+        </span>
+        <span class="faq-arrow">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M5 12h14m-6-6 6 6-6 6"/>
+          </svg>
+        </span>`;
+      btn.addEventListener('click', () => onFaqClick(it));
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+    $('faq-empty').hidden = items.length > 0;
+    $('faq-count').textContent =
+      items.length === 0 ? '' : `${items.length} common request${items.length > 1 ? 's' : ''}`;
+  }
+
+  /**
+   * Called when the user clicks a FAQ item.
+   *
+   * Stage: awaiting_subject
+   *   → Auto-send the summary as the user's subject message.
+   *   → Bot replies asking for description.
+   *   → Pre-fill the textarea with the FAQ description template so the
+   *     user can edit it before sending.
+   *
+   * Any other stage: show a brief hint toast and do nothing else.
+   */
+  async function onFaqClick(faqItem) {
+    if (chatFlow.stage !== 'awaiting_subject') {
+      toast('Start a new conversation first to use an FAQ template.');
+      return;
+    }
+
+    const subject = faqItem.summary || faqItem.question || '';
+
+    state.ticket.summary = subject;
+    state.ticket.description = faqItem.description || '';
+    state.ticket.templateName = faqItem.id || null;
+    state.selectedFaqId = faqItem.id || null;
+
+    addMsg('user', esc(subject));
+    showResetButton();
+    chatFlow.stage = 'awaiting_description';
+    renderFaqList();
+
+    setChatInputBusy(true);
+    await simulateBotDelay(() => {
+      addMsg('bot', 'لطفا توضیحات مشکل خود را بصورت واضح بیان کنید.');
+    });
+    setChatInputBusy(false);
+
+    const input = $('chat-input');
+    input.value = faqItem.description || '';
+    autoResizeTextarea(input);
+    input.focus();
+
+    const firstPlaceholder = input.value.indexOf('[');
+    if (firstPlaceholder !== -1) {
+      input.setSelectionRange(firstPlaceholder, firstPlaceholder);
+    }
+  }
+
+  function initSearch() {
+    const input = $('faq-search');
+    input.addEventListener('input', () => {
+      state.query = input.value;
+      $('search-clear').hidden = !input.value;
+      renderFaqList();
+    });
+    $('search-clear').addEventListener('click', () => {
+      input.value = '';
+      state.query = '';
+      $('search-clear').hidden = true;
+      renderFaqList();
+      input.focus();
+    });
+  }
+
+  // ---------- Bot greeting ----------
+  function botGreet() {
+    setTimeout(() => {
+      addMsg('bot',
+        'سلام، من دستیار هوشمند سیستم Ticketing نقش اول کیفیت هستم.\n' +
+        'لطفا موضوع مشکل خود را حداکثر در 5 کلمه بیان کنید.'
+      );
+    }, 300);
   }
 
   // ---------- Boot ----------
   function boot() {
     initTheme();
     initLogo();
-    initIdentityForm();
     initSearch();
-    initCompose();
+    initChatInput();
     initDone();
     initActions();
-    state.identity = loadIdentity();
-    renderUserChip();
+
     loadFaq();
-    showView(state.identity ? 'home' : 'identity');
+    showView('compose');
+    botGreet();
   }
 
   boot();
