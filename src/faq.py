@@ -70,6 +70,7 @@ def load_faq(path: Path | None = None) -> tuple[list[str], list[FaqItem]]:
     return categories, items
 
 
+
 def search_faq(items: list[FaqItem], query: str, category: str | None = None) -> list[FaqItem]:
     """فیلترِ ساده و قابلِ‌پیش‌بینی: همهٔ واژه‌های query باید در متنِ نرمال‌شده باشند."""
     pool = [it for it in items if not category or it.category == category]

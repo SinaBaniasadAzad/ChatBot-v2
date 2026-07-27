@@ -1,74 +1,75 @@
-# Ticket Triage Chatbot
+# چت‌بات مسیریابی خودکار تیکت (Ticket Triage Chatbot)
 
-The employee only describes their issue; the chatbot uses **DeepSeek** to classify it
-into two layers and, if necessary, asks **up to 2 follow-up questions**.
+کارمند فقط مشکلش را توضیح می‌دهد؛ چت‌بات با کمک **DeepSeek** آن را در دو لایه
+دسته‌بندی می‌کند و در صورت ابهام، **حداکثر ۲ سوال تکمیلی** می‌پرسد.
 
-- **Layer 1 (Intent):** `Incident` or `Service Request`
-- **Layer 2 (Domain):** `ERP` or `Staff`
+- **Layer 1 (Intent):** `Incident` یا `Service Request`
+- **Layer 2 (Domain):** `ERP` یا `Staff`
 
-> Categories are defined in `config/taxonomy.yaml`. **Adding a new category = adding a new block
-> to the same file**, with **no code changes required**.
+> دسته‌ها در `config/taxonomy.yaml` تعریف شده‌اند. **افزودن دستهٔ جدید = افزودن یک بلوک
+> به همان فایل**، بدون هیچ تغییری در کد.
 
----
-
-## Architecture
-
-```
-User ──▶ ConversationManager ──▶ Classifier ──▶ DeepSeekClient ──▶ DeepSeek API
-            │  (max 2 questions)      │  (single pass)      │  (JSON mode + retry)
-            ▼                         ▼
-        Decision  ◀──────────  Ambiguity-Driven
-     (done / ask / fallback)   (evidence-based, not confidence-based)
-```
-
-### Why Ambiguity-Driven instead of confidence scores?
-The confidence score reported by an LLM is not calibrated and is often overconfident.
-Instead, the model is required to provide **objective evidence (words/phrases from the text)**
-for each predicted label. A layer is considered **ambiguous** if the model explicitly marks it
-as ambiguous or if its top candidate has **no supporting evidence**. A follow-up question is
-asked only when the required information is genuinely **missing from the user's text**.
+> 🚀 **استقرارِ production (Docker، پیکربندی، بکاپ، rollback، چک‌لیستِ تحویل به زیرساخت):**
+> [deploy.md](deploy.md)
 
 ---
 
-## Project Structure
+## معماری
+
+```
+کاربر ──▶ ConversationManager ──▶ Classifier ──▶ DeepSeekClient ──▶ DeepSeek API
+              │  (سقف ۲ سوال)         │  (یک دور)        │  (JSON mode + retry)
+              ▼                       ▼
+          Decision  ◀────────  Ambiguity-Driven
+       (done / ask / fallback)   (مبتنی بر شواهد، نه عدد confidence)
+```
+
+### چرا Ambiguity-Driven و نه عدد confidence؟
+عددِ confidence که خود LLM گزارش می‌کند کالیبره نیست و بیش‌اعتماد است. به‌جای آن،
+از مدل می‌خواهیم برای هر برچسب **شواهد عینی (کلمات/عبارات متن)** بیاورد. یک لایه
+«مبهم» است اگر مدل خودش اعلام کند یا کاندیدای برترش **هیچ شاهدی** نداشته باشد.
+سوال تکمیلی فقط وقتی پرسیده می‌شود که اطلاعات واقعاً در متن **نباشد**.
+
+---
+
+## ساختار فایل‌ها
 
 ```
 ChatBot/
 ├── config/
-│   ├── settings.py          # Environment variables, model, thresholds, question limit
-│   └── taxonomy.yaml        # ★ Category definitions (single source of truth)
+│   ├── settings.py          # env، مدل، آستانه‌ها، سقف سوال
+│   └── taxonomy.yaml        # ★ تعریف دسته‌ها (تنها منبع حقیقت)
 ├── data/
-│   └── examples.jsonl       # Labeled few-shot examples
+│   └── examples.jsonl       # مثال‌های برچسب‌خورده (few-shot)
 ├── src/
-│   ├── taxonomy.py          # YAML loader + typed wrapper
+│   ├── taxonomy.py          # بارگذاری و wrapper تایپ‌دار روی YAML
 │   ├── llm/{client,prompts}.py
 │   ├── classifier/
-│   │   ├── schema.py        # Pydantic data models only
-│   │   ├── output_parser.py # ★ Parse/repair/validate raw LLM output
-│   │   ├── few_shot.py      # Balanced few-shot example builder
-│   │   ├── classifier.py    # Single-pass classification
-│   │   └── decision.py      # ★ Ambiguity-driven decision logic
-│   ├── conversation/{state,manager}.py   # ★ Orchestrator + logging
+│   │   ├── schema.py        # فقط مدل‌های دادهٔ Pydantic
+│   │   ├── output_parser.py # ★ تبدیل/ترمیم/اعتبارسنجی خروجی خام LLM
+│   │   ├── few_shot.py      # ساخت مثال‌های متوازن
+│   │   ├── classifier.py    # یک دور دسته‌بندی
+│   │   └── decision.py      # ★ منطق Ambiguity-Driven
+│   ├── conversation/{state,manager}.py   # ★ Orchestrator + لاگ
 │   ├── api/app.py           # FastAPI
 │   └── utils/{normalize,logging,interaction_log}.py
-├── logs/interactions.jsonl  # Persistent interaction log (gitignored, contains PII)
-├── scripts/evaluate.py      # Accuracy evaluation on a Gold Set
-├── tests/test_classifier.py # Offline tests
-└── cli.py                   # Manual interactive testing
+├── logs/interactions.jsonl  # لاگ ماندگار تعاملات (gitignore، حاوی PII)
+├── scripts/evaluate.py      # سنجش دقت روی Gold Set
+├── tests/test_classifier.py # تست‌های آفلاین
+└── cli.py                   # تست تعاملی دستی
 ```
 
-## Interaction Logging
-
-Each classification round and every complete conversation session is stored as a
-single JSON line in `logs/interactions.jsonl`: the ticket, **follow-up questions + user
-answers**, raw model output (candidates + evidence), final decision, and LLM metadata
-(model, latency, token usage). These logs are essential for accuracy analysis,
-building a Gold Set, and prompt tuning. Logging can be disabled with
-`INTERACTION_LOG_ENABLED=false`.
+## لاگِ تعاملات
+هر دور دسته‌بندی و هر جلسهٔ کامل در جدولِ `interactions` (SQLite در `APP_DB_PATH`)
+ذخیره می‌شود: تیکت، **سوال‌های تکمیلی + پاسخ کاربر**، خروجی خام مدل (کاندیدا + شواهد)،
+تصمیم نهایی، و متادیتای LLM (مدل، latency، مصرف توکن). این داده‌ها برای تحلیل دقت،
+ساخت Gold Set و تیون prompt حیاتی‌اند. با `INTERACTION_LOG_ENABLED=false` خاموش می‌شود؛
+سیاستِ نگه‌داری (پیش‌فرض ۹۰ روز) خودکار اعمال می‌شود. خروجیِ JSONL برای ابزارهای تحلیل:
+`python -m scripts.export_interactions --out interactions.jsonl`
 
 ---
 
-## Setup (PowerShell / Windows)
+## راه‌اندازی (PowerShell / Windows)
 
 ```powershell
 python -m venv .venv
@@ -76,126 +77,142 @@ python -m venv .venv
 pip install -r requirements.txt
 
 Copy-Item .env.example .env
-# Then add your DEEPSEEK_API_KEY to the .env file
+# سپس DEEPSEEK_API_KEY را داخل .env بگذارید
 ```
 
-## Run
+## اجرا
 
 ```powershell
-# 1) Employee web UI (SPA in web/ + same API) — production path
-uvicorn src.api.app:app --reload      # or in PyCharm: python run_web.py
-#    UI: http://127.0.0.1:8000/        Docs: http://127.0.0.1:8000/docs
+# ۱) رابطِ وبِ کارمندان (SPA در پوشهٔ web/ + همان API) — مسیرِ production
+uvicorn src.api.app:app --reload      # یا در PyCharm:  python run_web.py
+#    رابط کاربری: http://127.0.0.1:8000/        مستندات: http://127.0.0.1:8000/docs
 
-# 2) Gradio version (for quick testing/Kaggle, same user experience)
-#    ★ Requires Gradio 4/5 (not 6): pip install "gradio>=4,<6"
-python app_gradio.py                  # or on Windows/PyCharm: python app_gradio_windows.py
+# ۲) نسخهٔ Gradio (برای تستِ سریع/Kaggle، همان تجربهٔ کاربری)
+#    ★ نیازمند Gradio نسخهٔ ۴/۵ (نه ۶):  pip install "gradio>=4,<6"
+python app_gradio.py                  # یا در PyCharm/ویندوز:  python app_gradio_windows.py
 
-# 3) Manual interactive test
+# ۳) تست تعاملی دستی
 python cli.py
 
-# 4) Offline tests (no API required)
+# ۴) تست‌های آفلاین (بدون API)
 python -m pytest -q
 
-# 5) Evaluate accuracy on the Gold Set
+# ۵) ارزیابی دقت روی Gold Set
 python -m scripts.evaluate data/gold.jsonl
+
+# ۶) بنچمارکِ embedding برای retrieval-based few-shot (راهنمای Kaggle: docs/embedding_benchmark.md)
+python -m scripts.prepare_retrieval_dataset
+python -m scripts.benchmark_embeddings --model bm25     # سایر مدل‌ها: e5-large، bge-m3، qwen3-0.6b
+python -m scripts.benchmark_embeddings --report
+
+# ۷) ساختِ ایندکسِ retrieval برای production (برندهٔ بنچمارک: BGE-M3) و ارزیابیِ A/B
+#    (راهنمای گام‌به‌گامِ Kaggle: docs/kaggle_retrieval_eval.md)
+python -m scripts.build_retrieval_index
+python -m scripts.eval_incdb tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --workers 6 --no-retrieval --out preds_base.jsonl
+python -m scripts.eval_incdb tests/Ticketing_DB.jsonl --frac 0.2 --seed 42 --workers 6 --out preds_ret.jsonl
+python -m scripts.compare_eval_runs preds_base.jsonl preds_ret.jsonl
 ```
 
-> **Gradio note:** The Gradio UI was built against the Gradio 4/5 API and is **not compatible with Gradio 6**
-> (`type="messages"` and some Blocks css/theme features were removed). Gradio is intentionally excluded
-> from `requirements.txt` to keep the production server lightweight; install it locally with
-> `pip install "gradio>=4,<6"` when needed.
+### دسته‌بندیِ retrieval-augmented + گِیتِ اطمینان (پیش‌فرض: فعال)
 
-### Employee Web UI (Production)
+اگر `data/retrieval/index.npz` موجود باشد، هر دسته‌بندی: (۱) شبیه‌ترین تیکت‌های
+تاریخی را به‌عنوانِ **سابقهٔ برچسب‌خورده** به پیامِ کاربر تزریق می‌کند (system prompt
+ثابت می‌ماند → prompt cache حفظ است)، و (۲) رایِ kNN همسایه‌ها را به لایهٔ تصمیم
+می‌دهد. یک لایه «مبهم» است اگر: مدل خودش اعلام کند، شاهدش **در متنِ تیکت
+راستی‌آزمایی نشود** (شاهدِ توهمی = اطمینانِ کاذب)، یا **همسایگیِ خالصِ تاریخی
+(purity ≥ 0.8) مخالفِ برچسبِ مدل** رای بدهد → حداکثر ۲ سوالِ شفاف‌سازی، سپس ثبت
+با پرچمِ بازبینی. آستانه‌ها با env قابلِ تنظیم‌اند:
+`RETRIEVAL_SIM_FLOOR`، `KNN_DISAGREE_PURITY`، `EVIDENCE_VERIFICATION`،
+`RETRIEVAL_ENABLED=false` (خاموشی کامل).
 
-The user journey consists of three steps:
-**Identification** (employee ID + name, once per device) →
-**FAQ search or free-text description** →
-**Confirmation and submission** with a tracking number in the format `TKT-YYYY-NNNNN`.
+> **نکتهٔ Gradio:** رابطِ Gradio با API نسخهٔ ۴/۵ نوشته شده و روی **Gradio ۶ کار نمی‌کند**
+> (`type="messages"` و css/theme در Blocks حذف شده‌اند). Gradio عمداً در `requirements.txt`
+> نیست تا سرورِ production سبک بماند؛ فقط برای تستِ محلی `pip install "gradio>=4,<6"`.
 
-- **FAQ (predefined templates):** 20 common requests stored in `data/faq.json` — editable without code changes.
-  Instant search uses Persian/Arabic normalization (ي→ی, ك→ک, digits) in `src/faq.py`
-  with the same logic implemented on the client side.
-- **Final submission:** `POST /api/tickets` → appends to `logs/tickets.jsonl`
-  (append-only, contains PII, gitignored) with a sequential tracking number — ready for
-  integration with a real ITSM system.
-- **New endpoints:** `GET /api/faq`, `POST /api/tickets`, `GET /api/logo`;
-  existing `classify/*` endpoints remain unchanged.
-- **UI files:** `web/index.html`, `web/styles.css`, `web/app.js` — no build step;
-  dark/light theme, responsive design, keyboard/ARIA support, and `dir=auto`
-  inputs for Persian text.
+### رابطِ وبِ کارمندان (production UI)
 
-### API Example
+سفرِ کاربر در ۳ گام: **شناسایی** (کد پرسنلی + نام، یک‌بار در هر دستگاه) →
+**جستجوی FAQ یا توضیحِ آزاد** → **تایید و ثبت** با شمارهٔ پیگیری `TKT-YYYY-NNNNN`.
+
+- **FAQ (قالب‌های آماده):** ۲۰ درخواستِ پرتکرار در `data/faq.json` — ویرایش بدون تغییرِ کد.
+  جستجوی لحظه‌ای با نرمال‌سازیِ فارسی/عربی (ي→ی، ك→ک، ارقام) در `src/faq.py` و همان منطق
+  سمتِ کلاینت.
+- **ثبتِ نهایی:** `POST /api/tickets` → جدولِ `tickets` در SQLite (`APP_DB_PATH`، حاویِ PII،
+  در gitignore) با شمارهٔ پیگیریِ ترتیبیِ تراکنشی + جستجوی تمام‌متنیِ فارسی (FTS5) —
+  آمادهٔ اتصال به ITSM واقعی.
+- **اندپوینت‌های جدید:** `GET /api/faq`، `POST /api/tickets`، `GET /api/logo`؛ مسیرهای
+  `classify/*` بدونِ تغییر.
+- فایل‌های UI: `web/index.html`، `web/styles.css`، `web/app.js` — بدونِ build step؛ تمِ
+  تیره/روشن، ریسپانسیو، کیبورد/ARIA، ورودی‌های `dir=auto` برای متنِ فارسی.
+
+### نمونهٔ فراخوانی API
 
 ```bash
 curl -X POST http://127.0.0.1:8000/classify/start \
   -H "Content-Type: application/json" \
-  -d '{"summary":"Punch registration error","description":"Today's check-in/check-out was not recorded"}'
+  -d '{"summary":"خطا در ثبت پانچ","description":"ورود و خروج امروز ثبت نشد"}'
 ```
 
-If `status` is `need_info`, send the user's answer together with the `session_id`
-to `/classify/answer`.
+اگر `status` برابر `need_info` بود، با `session_id` و پاسخ کاربر به
+`/classify/answer` بزنید.
 
 ---
 
-## Management Reports
+## گزارش‌های ارائه‌محور (برای مدیریت)
 
-All outputs are generated from **real execution data** and share the same underlying
-engines, ensuring that reported numbers are always consistent:
-`src/reporting/cost.py` (cost), `src/reporting/metrics.py` (accuracy), and the shared
-HTML design system in `src/reporting/html_ui.py`.
+همهٔ خروجی‌ها از **دادهٔ واقعی** و از موتورهای واحد تغذیه می‌شوند تا اعداد هیچ‌وقت با
+هم اختلاف نداشته باشند: `src/reporting/cost.py` (هزینه)، `src/reporting/metrics.py`
+(دقت)، و دیزاین‌سیستمِ مشترکِ HTML در `src/reporting/html_ui.py`.
 
-Accuracy and cost are generated **independently** — producing two HTML reports and two images.
+دقت و هزینه **جدا از هم** خروجی می‌گیرند — دو HTML و دو تصویر.
 
-**1) Accuracy Report** (`scripts/perf_report.py`) — a self-contained HTML report with four sections:
-executive summary, operational readiness (auto vs needs-review), per-class
-Precision/Recall/F1, and a visual confusion matrix.
-(**Requires DEEPSEEK_API_KEY**)
+**۱) گزارشِ دقت** (`scripts/perf_report.py`) — یک HTMLِ خودبسنده با ۴ بخش: خلاصهٔ
+مدیریتی، آمادگیِ عملیاتی (auto در برابر needs-review)، Precision/Recall/F1 هر کلاس،
+و ماتریسِ درهم‌ریختگیِ بصری. (نیازمندِ DEEPSEEK_API_KEY)
 
 ```bash
 python -m scripts.perf_report tests/Ticketing_DB.jsonl --frac 0.2 --workers 6 \
   --out accuracy_report.html --errors errors.jsonl
 ```
 
-**2) Cost/Token Report** (`scripts/cost_report.py`) — a standalone HTML report.
-A key advantage is that it can be generated directly from production logs
-**without calling the API**:
+**۲) گزارشِ هزینه/توکن** (`scripts/cost_report.py`) — یک HTMLِ مستقل. مزیتِ مهم:
+از لاگِ تولید **بدونِ نیاز به API** هم ساخته می‌شود:
 
 ```bash
-python -m scripts.cost_report --from-log logs/interactions.jsonl --out cost_report.html
+python -m scripts.export_interactions --out interactions.jsonl
+python -m scripts.cost_report --from-log interactions.jsonl --out cost_report.html
 ```
 
-Pricing is configurable and clearly labeled as **assumptions** in the report footer
-(`--price-in`, `--price-cache`, `--price-out`; USD per 1M tokens).
+نرخ‌ها قابلِ تنظیم‌اند و به‌عنوان «مفروضات» در پاورقی برچسب می‌خورند
+(`--price-in`, `--price-cache`, `--price-out`؛ دلار به‌ازای هر ۱M توکن).
 
-**One run → all outputs** (Kaggle/Notebook).
-`evaluate_and_report` performs a single evaluation run and produces **two HTML reports,
-two separate images** (accuracy and cost), plus error files (JSON and Excel),
-**without consuming additional API calls**. Both visual dashboards are **always displayed inline**
-(as in Kaggle), regardless of whether output files are saved.
+**یک اجرا → همهٔ خروجی‌ها** (Kaggle/Notebook). `evaluate_and_report` با یک اجرای
+واقعی، **دو HTML و دو تصویرِ جدا** (دقت و هزینه) + خطاها (JSON و Excel) را می‌سازد
+(بدونِ مصرفِ دوبارهٔ API). هر دو داشبوردِ تصویری **همیشه inline نمایش داده می‌شوند**
+(مثلِ همیشه در Kaggle)، مستقل از اینکه فایلی ذخیره بخواهی:
 
 ```python
 from scripts.report import evaluate_and_report
 res, figs = evaluate_and_report(
     "/kaggle/working/ChatBot-v2/tests/Ticketing_DB.jsonl", frac=0.2, workers=6,
-    accuracy_html="/kaggle/working/accuracy_report.html",  # Accuracy HTML report (dark theme)
-    cost_html="/kaggle/working/cost_report.html",          # Cost/token HTML report (dark theme)
-    accuracy_png="/kaggle/working/accuracy_report.png",    # Accuracy image
-    cost_png="/kaggle/working/cost_report.png",            # Cost/token image
-    errors_out="/kaggle/working/errors.jsonl",             # Misclassified tickets (JSON)
-    errors_xlsx="/kaggle/working/errors.xlsx",             # Misclassified tickets (Excel)
+    accuracy_html="/kaggle/working/accuracy_report.html",  # گزارشِ HTMLِ دقت (تمِ تیره)
+    cost_html="/kaggle/working/cost_report.html",          # گزارشِ HTMLِ هزینه/توکن (تمِ تیره)
+    accuracy_png="/kaggle/working/accuracy_report.png",    # تصویرِ دقت
+    cost_png="/kaggle/working/cost_report.png",            # تصویرِ هزینه/توکن
+    errors_out="/kaggle/working/errors.jsonl",             # تیکت‌های اشتباه (JSON)
+    errors_xlsx="/kaggle/working/errors.xlsx",             # تیکت‌های اشتباه (Excel)
 )
 ```
 
-> The **Operational readiness** section is currently disabled. Re-enable it by setting
-> `SHOW_OPERATIONAL_READINESS = True` in `scripts/perf_report.py`.
+> بخشِ **Operational readiness** فعلاً خاموش است؛ با `SHOW_OPERATIONAL_READINESS = True`
+> در `scripts/perf_report.py` برمی‌گردد.
 
 ---
 
-## Next Steps (Engineering Suggestions)
-
-1. **Build a Gold Set:** Create 150–200 manually verified tickets (raw Key/Application labels are noisy)
-   and measure real accuracy with `scripts/evaluate.py`.
-2. **Expand the few-shot dataset:** Add more balanced examples to `data/examples.jsonl`
-   across all four label combinations.
-3. **Session store:** Replace the in-memory `_sessions` with Redis for production deployment.
-4. **Logging:** Store inputs, outputs, and supporting evidence as future assets for fine-tuning or RAG.
+## گام‌های بعدی (پیشنهاد مهندسی)
+1. **Gold Set:** ۱۵۰–۲۰۰ تیکت دستی‌تأییدشده بسازید (برچسب خام Key/Application نویزی است)
+   و با `scripts/evaluate.py` دقت واقعی را اندازه بگیرید.
+2. **few-shot را غنی کنید:** نمونه‌های بیشتر در `data/examples.jsonl` (متوازن بین ۴ ترکیب).
+3. **session store:** برای تولید، `_sessions` درون‌حافظه‌ای را با Redis جایگزین کنید.
+4. **لاگ:** ورودی/خروجی/شواهد را ذخیره کنید؛ سرمایهٔ آیندهٔ fine-tune یا RAG.
+```

@@ -1,0 +1,9 @@
+# ابزارهای توسعه، تست و گزارش‌گیری — روی سرورِ production نصب نمی‌شوند.
+# نصب:  pip install -r requirements.txt -r requirements-dev.txt
+-r requirements.txt
+
+pytest==9.1.1
+
+# گزارش‌های مدیریتی (scripts/report.py، perf_report، cost_report، errors_export)
+matplotlib==3.11.0
+openpyxl==3.1.5

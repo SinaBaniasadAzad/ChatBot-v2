@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Token &amp; Cost Report</title>
+<style>
+:root{
+  --bg:#0b1020; --card:#141b2e; --card2:#111827; --line:#243049;
+  --ink:#e9eefc; --mut:#93a4c8; --mut2:#64748b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:
+  radial-gradient(1100px 560px at 12% -8%,#1a2748 0%,transparent 55%),
+  radial-gradient(1000px 520px at 100% 0%,#10263a 0%,transparent 50%),
+  var(--bg);
+  color:var(--ink);font-family:'Segoe UI',Roboto,Helvetica,Arial,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:40px 22px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.wrap{max-width:1180px;margin:0 auto}
+
+/* هدر */
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:8px}
+.h-title{font-size:30px;font-weight:800;letter-spacing:.2px;margin:0;line-height:1.15}
+.h-grad{background:linear-gradient(90deg,#818cf8,#22d3ee 60%,#2dd4bf);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.h-sub{color:var(--mut);font-size:13.5px;margin-top:9px;line-height:1.75}
+.h-sub b{color:var(--ink);font-weight:600}
+.pill{display:inline-block;padding:3px 11px;border:1px solid var(--line);border-radius:999px;
+  font-size:11.5px;color:var(--mut);margin-left:6px;background:rgba(255,255,255,.02)}
+
+/* سکشن سطح‌بالا */
+.sec{margin-top:34px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-i{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800;color:var(--c);
+  border:1px solid var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.sec-t{font-size:17px;font-weight:800;letter-spacing:.2px}
+.sec-badge{margin-left:auto;font-size:12px;font-weight:800;color:var(--bc);
+  border:1px solid var(--bc);border-radius:999px;padding:3px 12px;
+  background:color-mix(in srgb,var(--bc) 14%,transparent)}
+
+/* گرید */
+.grid{display:grid;gap:16px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k3{grid-template-columns:repeat(3,1fr)}
+.k2{grid-template-columns:repeat(2,1fr)}
+.c2{grid-template-columns:1.35fr 1fr}
+.c2b{grid-template-columns:1fr 1fr}
+
+/* کارتِ KPI */
+.kpi{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-radius:16px;padding:18px 18px 16px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.kpi-label{color:var(--mut);font-size:12px;font-weight:600;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:30px;font-weight:800;margin-top:10px;letter-spacing:.3px}
+.kpi-sub{color:var(--mut2);font-size:12px;margin-top:7px;line-height:1.5}
+.badge{font-size:10.5px;font-weight:800;color:var(--bc);border:1px solid var(--bc);
+  border-radius:999px;padding:1px 9px;text-transform:none;letter-spacing:0;
+  background:color-mix(in srgb,var(--bc) 16%,transparent)}
+.hero{padding:22px}
+.hero .kpi-value{font-size:44px}
+.pass{background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(20,184,166,.08));
+  border-color:rgba(34,197,94,.35)}
+.fail{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(245,158,11,.07));
+  border-color:rgba(239,68,68,.35)}
+.save{background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(20,184,166,.10));
+  border-color:rgba(34,197,94,.35)}
+.save .kpi-value{color:#4ade80}
+
+/* پنل */
+.panel{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-radius:16px;padding:20px}
+.p-title{font-size:13.5px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:9px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--ink)}
+.p-title .d{width:9px;height:9px;border-radius:3px}
+
+/* نوار انباشته + افسانه */
+.bar{display:flex;height:30px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.seg{height:100%}
+.legend{margin-top:16px;display:flex;flex-direction:column;gap:11px}
+.lg-item{display:flex;align-items:center;gap:10px;font-size:13px}
+.dot{width:11px;height:11px;border-radius:3px;flex:none}
+.lg-label{color:var(--mut)}
+.lg-val{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* دونات */
+.donut-wrap{display:flex;gap:20px;align-items:center}
+.donut{width:140px;height:140px;flex:none}
+.d-top{fill:var(--ink);font-size:17px;font-weight:800;text-anchor:middle}
+.d-bot{fill:var(--mut);font-size:9.5px;text-anchor:middle;text-transform:uppercase;letter-spacing:1px}
+.donut-wrap .legend{flex:1}
+
+/* جدول */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+td.l,th.l{text-align:left}
+td.r,th.r{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+.tot td{font-weight:800;border-top:1px solid var(--line);border-bottom:none}
+
+/* نوارِ پیشرفتِ درون‌سلولی */
+.prog{position:relative;display:inline-block;width:158px;height:22px;border-radius:7px;
+  background:rgba(255,255,255,.05);overflow:hidden;vertical-align:middle}
+.prog-fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;opacity:.85}
+.prog-txt{position:absolute;left:10px;top:0;line-height:22px;font-size:11.5px;font-weight:700;
+  color:var(--ink);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+
+/* heatmap */
+.hm-title{font-size:12.5px;font-weight:700;color:var(--mut);margin:0 0 10px}
+table.hm{border-collapse:separate;border-spacing:4px;width:auto}
+.hm th,.hm td{border:none;padding:0}
+.hm-h{font-size:11px;color:var(--mut);text-align:center;padding:0 4px 6px!important;font-weight:600}
+.hm-corner{font-size:10.5px;color:var(--mut2);text-align:right;padding-right:8px!important}
+.hm-rh{font-size:11.5px;color:var(--ink);text-align:right;padding-right:8px!important;
+  font-weight:600;white-space:nowrap}
+.hm-c{width:92px;height:58px;border-radius:10px;text-align:center;vertical-align:middle;
+  border:1px solid var(--line)!important;position:relative}
+.hm-n{display:block;font-size:18px;font-weight:800;color:var(--ink)}
+.hm-n.on{color:#fff}
+.hm-p{display:block;font-size:10px;color:var(--mut);margin-top:1px}
+.hm-n.on + .hm-p{color:rgba(255,255,255,.8)}
+
+/* پاورقی */
+.foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--mut2);font-size:11.5px;line-height:1.85}
+.foot b{color:var(--mut)}
+.mt{margin-top:16px}
+
+@media print{
+  body{padding:0}
+  .kpi,.panel,.sec{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head"><div><h1 class="h-title"><span class="h-grad">Token &amp; Cost Report</span></h1><div class="h-sub">Ticket Triage Chatbot · DeepSeek<br/><b>Model:</b> deepseek-reasoner &nbsp;·&nbsp; <b>Tickets:</b> 164 &nbsp;·&nbsp; <b>API calls:</b> 164 &nbsp;·&nbsp; <b>Source:</b> Ticketing_DB.jsonl</div></div><div style="text-align:right"><span class="pill">DeepSeek API</span><span class="pill">3-tier pricing</span><div class="h-sub" style="margin-top:10px">2026-07-04</div></div></div>
+<div class="grid k4"><div class="kpi " style="--c:#6366f1"><div class="kpi-label">Total cost</div><div class="kpi-value">$0.0318</div><div class="kpi-sub">over 164 tickets</div></div><div class="kpi " style="--c:#14b8a6"><div class="kpi-label">Cost / ticket</div><div class="kpi-value">$0.000194</div><div class="kpi-sub">10,374 tokens/ticket</div></div><div class="kpi " style="--c:#f59e0b"><div class="kpi-label">Total tokens</div><div class="kpi-value">1,701,317</div><div class="kpi-sub">in 1,609,657 · out 91,660</div></div><div class="kpi " style="--c:#22c55e"><div class="kpi-label">Cache hit rate<span class="badge" style="--bc:#22c55e">−87%</span></div><div class="kpi-value">99.3%</div><div class="kpi-sub">of 1,609,657 input tokens</div></div></div><div class="grid c2 mt"><div class="panel"><p class="p-title"><span class="d" style="background:#14b8a6"></span>Token composition</p><div class="bar"><div class="seg" style="width:93.9244%;background:#22c55e" title="Cached input (hit): 1,597,952"></div><div class="seg" style="width:0.6880%;background:#f59e0b" title="Uncached input (miss): 11,705"></div><div class="seg" style="width:5.3876%;background:#6366f1" title="Output (completion): 91,660"></div></div><div class="legend"><div class="lg-item"><span class="dot" style="background:#22c55e"></span><span class="lg-label">Cached input (hit)</span><span class="lg-val">1,597,952 · 93.9%</span></div><div class="lg-item"><span class="dot" style="background:#f59e0b"></span><span class="lg-label">Uncached input (miss)</span><span class="lg-val">11,705 · 0.7%</span></div><div class="lg-item"><span class="dot" style="background:#6366f1"></span><span class="lg-label">Output (completion)</span><span class="lg-val">91,660 · 5.4%</span></div></div></div><div class="panel"><p class="p-title"><span class="d" style="background:#6366f1"></span>Cost composition</p><div class="donut-wrap"><svg viewBox="0 0 140 140" class="donut"><circle cx="70" cy="70" r="52.0" fill="none" stroke="#f59e0b" stroke-width="20" stroke-dasharray="62.851 263.875" stroke-dashoffset="-0.000" transform="rotate(-90 70 70)" /><circle cx="70" cy="70" r="52.0" fill="none" stroke="#6366f1" stroke-width="20" stroke-dasharray="263.875 62.851" stroke-dashoffset="-62.851" transform="rotate(-90 70 70)" /><text x="70" y="64" class="d-top">$0.0318</text><text x="70" y="84" class="d-bot">total</text></svg><div class="legend"><div class="lg-item"><span class="dot" style="background:#f59e0b"></span><span class="lg-label">Input cost</span><span class="lg-val">$0.0061 · 19.2%</span></div><div class="lg-item"><span class="dot" style="background:#6366f1"></span><span class="lg-label">Output cost</span><span class="lg-val">$0.0257 · 80.8%</span></div></div></div></div></div><div class="grid c2b mt"><div class="panel"><p class="p-title"><span class="d" style="background:#f59e0b"></span>Cost breakdown</p><table><thead><tr><th class="l">Component</th><th class="r">Tokens</th><th class="r">Rate / 1M</th><th class="r">Cost</th></tr></thead><tbody><tr><td class="l">Cached input</td><td class="r">1,597,952</td><td class="r">$0.0028</td><td class="r">$0.0045</td></tr><tr><td class="l">Uncached input</td><td class="r">11,705</td><td class="r">$0.1400</td><td class="r">$0.0016</td></tr><tr><td class="l">Output</td><td class="r">91,660</td><td class="r">$0.2800</td><td class="r">$0.0257</td></tr><tr class="tot"><td class="l">Total</td><td class="r">1,701,317</td><td class="r"></td><td class="r">$0.0318</td></tr></tbody></table></div><div class="grid" style="gap:16px"><div class="kpi save" style="--c:#22c55e"><div class="kpi-label">Saved by prompt caching</div><div class="kpi-value">$0.2192</div><div class="kpi-sub">vs. $0.2510 no-cache baseline (87.3%)</div></div><div class="panel"><p class="p-title"><span class="d" style="background:#14b8a6"></span>Unit economics</p><table><thead><tr><th class="l">Metric</th><th class="r">Value</th></tr></thead><tbody><tr><td class="l">Cost per ticket</td><td class="r">$0.000194</td></tr><tr><td class="l">Cost per API call</td><td class="r">$0.000194</td></tr><tr><td class="l">Tokens per ticket</td><td class="r">10,374</td></tr><tr><td class="l">API calls per ticket</td><td class="r">1.00</td></tr><tr><td class="l">Avg latency</td><td class="r">1,139 ms</td></tr></tbody></table></div></div></div><div class="mt"><div class="panel"><p class="p-title"><span class="d" style="background:#6366f1"></span>Projected cost at scale</p><table><thead><tr><th class="l">Monthly volume</th><th class="r">Monthly</th><th class="r">Annual</th></tr></thead><tbody><tr><td class="l">1,000 tickets / mo</td><td class="r">$0.1938</td><td class="r">$2.33</td></tr><tr><td class="l">10,000 tickets / mo</td><td class="r">$1.94</td><td class="r">$23.25</td></tr><tr><td class="l">50,000 tickets / mo</td><td class="r">$9.69</td><td class="r">$116.26</td></tr><tr><td class="l">100,000 tickets / mo</td><td class="r">$19.38</td><td class="r">$232.52</td></tr></tbody></table><div class="kpi-sub mt">Extrapolated from the measured cost-per-ticket above (assumes a comparable cache-hit rate).</div></div></div><div class="foot"><b>Pricing assumptions</b> (USD per 1M tokens): cached input $0.0028 · uncached input $0.14 · output $0.28. Verify against current DeepSeek pricing. &nbsp;·&nbsp; Figures are derived from real measured token usage (no estimates).</div>
+</div>
+</body>
+</html>

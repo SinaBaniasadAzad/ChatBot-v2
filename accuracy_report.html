@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Model Accuracy Report</title>
+<style>
+:root{
+  --bg:#0b1020; --card:#141b2e; --card2:#111827; --line:#243049;
+  --ink:#e9eefc; --mut:#93a4c8; --mut2:#64748b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:
+  radial-gradient(1100px 560px at 12% -8%,#1a2748 0%,transparent 55%),
+  radial-gradient(1000px 520px at 100% 0%,#10263a 0%,transparent 50%),
+  var(--bg);
+  color:var(--ink);font-family:'Segoe UI',Roboto,Helvetica,Arial,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:40px 22px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.wrap{max-width:1180px;margin:0 auto}
+
+/* هدر */
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:8px}
+.h-title{font-size:30px;font-weight:800;letter-spacing:.2px;margin:0;line-height:1.15}
+.h-grad{background:linear-gradient(90deg,#818cf8,#22d3ee 60%,#2dd4bf);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.h-sub{color:var(--mut);font-size:13.5px;margin-top:9px;line-height:1.75}
+.h-sub b{color:var(--ink);font-weight:600}
+.pill{display:inline-block;padding:3px 11px;border:1px solid var(--line);border-radius:999px;
+  font-size:11.5px;color:var(--mut);margin-left:6px;background:rgba(255,255,255,.02)}
+
+/* سکشن سطح‌بالا */
+.sec{margin-top:34px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sec-i{width:26px;height:26px;border-radius:8px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800;color:var(--c);
+  border:1px solid var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.sec-t{font-size:17px;font-weight:800;letter-spacing:.2px}
+.sec-badge{margin-left:auto;font-size:12px;font-weight:800;color:var(--bc);
+  border:1px solid var(--bc);border-radius:999px;padding:3px 12px;
+  background:color-mix(in srgb,var(--bc) 14%,transparent)}
+
+/* گرید */
+.grid{display:grid;gap:16px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k3{grid-template-columns:repeat(3,1fr)}
+.k2{grid-template-columns:repeat(2,1fr)}
+.c2{grid-template-columns:1.35fr 1fr}
+.c2b{grid-template-columns:1fr 1fr}
+
+/* کارتِ KPI */
+.kpi{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-radius:16px;padding:18px 18px 16px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.kpi-label{color:var(--mut);font-size:12px;font-weight:600;display:flex;align-items:center;
+  justify-content:space-between;gap:8px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:30px;font-weight:800;margin-top:10px;letter-spacing:.3px}
+.kpi-sub{color:var(--mut2);font-size:12px;margin-top:7px;line-height:1.5}
+.badge{font-size:10.5px;font-weight:800;color:var(--bc);border:1px solid var(--bc);
+  border-radius:999px;padding:1px 9px;text-transform:none;letter-spacing:0;
+  background:color-mix(in srgb,var(--bc) 16%,transparent)}
+.hero{padding:22px}
+.hero .kpi-value{font-size:44px}
+.pass{background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(20,184,166,.08));
+  border-color:rgba(34,197,94,.35)}
+.fail{background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(245,158,11,.07));
+  border-color:rgba(239,68,68,.35)}
+.save{background:linear-gradient(135deg,rgba(34,197,94,.16),rgba(20,184,166,.10));
+  border-color:rgba(34,197,94,.35)}
+.save .kpi-value{color:#4ade80}
+
+/* پنل */
+.panel{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-radius:16px;padding:20px}
+.p-title{font-size:13.5px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:9px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--ink)}
+.p-title .d{width:9px;height:9px;border-radius:3px}
+
+/* نوار انباشته + افسانه */
+.bar{display:flex;height:30px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.seg{height:100%}
+.legend{margin-top:16px;display:flex;flex-direction:column;gap:11px}
+.lg-item{display:flex;align-items:center;gap:10px;font-size:13px}
+.dot{width:11px;height:11px;border-radius:3px;flex:none}
+.lg-label{color:var(--mut)}
+.lg-val{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* دونات */
+.donut-wrap{display:flex;gap:20px;align-items:center}
+.donut{width:140px;height:140px;flex:none}
+.d-top{fill:var(--ink);font-size:17px;font-weight:800;text-anchor:middle}
+.d-bot{fill:var(--mut);font-size:9.5px;text-anchor:middle;text-transform:uppercase;letter-spacing:1px}
+.donut-wrap .legend{flex:1}
+
+/* جدول */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+td.l,th.l{text-align:left}
+td.r,th.r{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+.tot td{font-weight:800;border-top:1px solid var(--line);border-bottom:none}
+
+/* نوارِ پیشرفتِ درون‌سلولی */
+.prog{position:relative;display:inline-block;width:158px;height:22px;border-radius:7px;
+  background:rgba(255,255,255,.05);overflow:hidden;vertical-align:middle}
+.prog-fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;opacity:.85}
+.prog-txt{position:absolute;left:10px;top:0;line-height:22px;font-size:11.5px;font-weight:700;
+  color:var(--ink);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+
+/* heatmap */
+.hm-title{font-size:12.5px;font-weight:700;color:var(--mut);margin:0 0 10px}
+table.hm{border-collapse:separate;border-spacing:4px;width:auto}
+.hm th,.hm td{border:none;padding:0}
+.hm-h{font-size:11px;color:var(--mut);text-align:center;padding:0 4px 6px!important;font-weight:600}
+.hm-corner{font-size:10.5px;color:var(--mut2);text-align:right;padding-right:8px!important}
+.hm-rh{font-size:11.5px;color:var(--ink);text-align:right;padding-right:8px!important;
+  font-weight:600;white-space:nowrap}
+.hm-c{width:92px;height:58px;border-radius:10px;text-align:center;vertical-align:middle;
+  border:1px solid var(--line)!important;position:relative}
+.hm-n{display:block;font-size:18px;font-weight:800;color:var(--ink)}
+.hm-n.on{color:#fff}
+.hm-p{display:block;font-size:10px;color:var(--mut);margin-top:1px}
+.hm-n.on + .hm-p{color:rgba(255,255,255,.8)}
+
+/* پاورقی */
+.foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--mut2);font-size:11.5px;line-height:1.85}
+.foot b{color:var(--mut)}
+.mt{margin-top:16px}
+
+@media print{
+  body{padding:0}
+  .kpi,.panel,.sec{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head"><div><h1 class="h-title"><span class="h-grad">Model Accuracy Report</span></h1><div class="h-sub">Ticket Triage Chatbot · Executive report<br/><b>Model:</b> deepseek-reasoner &nbsp;·&nbsp; <b>Tickets:</b> 164 &nbsp;·&nbsp; <b>Dataset:</b> Ticketing_DB.jsonl</div></div><div style="text-align:right"><span class="pill">DeepSeek</span><span class="pill">single-shot eval</span><div class="h-sub" style="margin-top:10px">2026-07-04</div></div></div>
+<section class="sec"><div class="sec-h"><span class="sec-i" style="--c:#22c55e">1</span><span class="sec-t">Executive summary</span></div><div class="sec-body"><div class="grid k4"><div class="kpi hero" style="--c:#22c55e"><div class="kpi-label">Overall accuracy</div><div class="kpi-value">90.1%</div><div class="kpi-sub">both layers correct · 146/162</div></div><div class="kpi " style="--c:#22c55e"><div class="kpi-label">Type accuracy</div><div class="kpi-value">92.6%</div><div class="kpi-sub">150/162 · macro-F1 92.6%</div></div><div class="kpi " style="--c:#22c55e"><div class="kpi-label">Domain accuracy</div><div class="kpi-value">97.6%</div><div class="kpi-sub">160/164 · macro-F1 97.2%</div></div><div class="kpi " style="--c:#64748b"><div class="kpi-label">Avg latency</div><div class="kpi-value">1,139 ms</div><div class="kpi-sub">per ticket</div></div></div></div></section><section class="sec"><div class="sec-h"><span class="sec-i" style="--c:#a78bfa">2</span><span class="sec-t">Per-class performance</span></div><div class="sec-body"><div class="grid mt" style="gap:16px"><div class="panel"><p class="p-title"><span class="d" style="background:#a78bfa"></span>Type  ·  per-class metrics</p><table><thead><tr><th class="l">Class</th><th class="r">Precision</th><th class="r">Recall</th><th class="r">F1</th><th class="r">Support</th></tr></thead><tbody><tr><td class="l">Incident</td><td class="r">87.3%</td><td class="r">97.2%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:92.00%;background:#22c55e"></div><span class="prog-txt">92.0%</span></div></td><td class="r">71</td></tr><tr><td class="l">Service Request</td><td class="r">97.6%</td><td class="r">89.0%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:93.10%;background:#22c55e"></div><span class="prog-txt">93.1%</span></div></td><td class="r">91</td></tr><tr class="tot"><td class="l">Macro avg</td><td class="r">92.5%</td><td class="r">93.1%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:92.55%;background:#22c55e"></div><span class="prog-txt">92.6%</span></div></td><td class="r">162</td></tr></tbody></table></div><div class="panel"><p class="p-title"><span class="d" style="background:#a78bfa"></span>Domain  ·  per-class metrics</p><table><thead><tr><th class="l">Class</th><th class="r">Precision</th><th class="r">Recall</th><th class="r">F1</th><th class="r">Support</th></tr></thead><tbody><tr><td class="l">ERP</td><td class="r">99.1%</td><td class="r">97.3%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:98.20%;background:#22c55e"></div><span class="prog-txt">98.2%</span></div></td><td class="r">112</td></tr><tr><td class="l">Staff</td><td class="r">94.4%</td><td class="r">98.1%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:96.23%;background:#22c55e"></div><span class="prog-txt">96.2%</span></div></td><td class="r">52</td></tr><tr class="tot"><td class="l">Macro avg</td><td class="r">96.8%</td><td class="r">97.7%</td><td class="r"><div class="prog"><div class="prog-fill" style="width:97.21%;background:#22c55e"></div><span class="prog-txt">97.2%</span></div></td><td class="r">164</td></tr></tbody></table></div></div></div></section><section class="sec"><div class="sec-h"><span class="sec-i" style="--c:#6366f1">3</span><span class="sec-t">Confusion matrices</span></div><div class="sec-body"><div class="grid c2b"><div class="panel"><p class="p-title"><span class="d" style="background:#6366f1"></span>Type</p><table class="hm"><thead><tr><th class="hm-corner">true ╲ pred</th><th class="hm-h">Incident</th><th class="hm-h">Service Request</th></tr></thead><tbody><tr><th class="hm-rh">Incident</th><td class="hm-c" style="background:rgba(34,197,94,0.837)"><span class="hm-n on">69</span><span class="hm-p">97%</span></td><td class="hm-c" style="background:rgba(239,68,68,0.083)"><span class="hm-n ">2</span><span class="hm-p">3%</span></td></tr><tr><th class="hm-rh">Service Request</th><td class="hm-c" style="background:rgba(239,68,68,0.148)"><span class="hm-n ">10</span><span class="hm-p">11%</span></td><td class="hm-c" style="background:rgba(34,197,94,0.772)"><span class="hm-n on">81</span><span class="hm-p">89%</span></td></tr></tbody></table></div><div class="panel"><p class="p-title"><span class="d" style="background:#6366f1"></span>Domain</p><table class="hm"><thead><tr><th class="hm-corner">true ╲ pred</th><th class="hm-h">ERP</th><th class="hm-h">Staff</th></tr></thead><tbody><tr><th class="hm-rh">ERP</th><td class="hm-c" style="background:rgba(34,197,94,0.839)"><span class="hm-n on">109</span><span class="hm-p">97%</span></td><td class="hm-c" style="background:rgba(239,68,68,0.081)"><span class="hm-n ">3</span><span class="hm-p">3%</span></td></tr><tr><th class="hm-rh">Staff</th><td class="hm-c" style="background:rgba(239,68,68,0.075)"><span class="hm-n ">1</span><span class="hm-p">2%</span></td><td class="hm-c" style="background:rgba(34,197,94,0.845)"><span class="hm-n on">51</span><span class="hm-p">98%</span></td></tr></tbody></table></div></div></div></section><div class="foot"><b>Methodology</b>: single-shot evaluation (no clarifying questions) · 164 tickets · avg latency 1,139 ms/ticket · generated 2026-07-04.</div>
+</div>
+</body>
+</html>

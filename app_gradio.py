@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
 # ۱) پیکربندی — قبل از import پروژه
@@ -33,16 +34,15 @@ try:
 except Exception:
     pass
 
-_KEY = ""
+_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 try:
-    from kaggle_secrets import UserSecretsClient  # type: ignore
-
+    from kaggle_secrets import UserSecretsClient
     _KEY = UserSecretsClient().get_secret("DEEPSEEK_API_KEY")
-except Exception:
-    _KEY = os.environ.get("OPENROUTER_API_KEY", os.environ.get("DEEPSEEK_API_KEY", ""))
+except Exception:from dotenv import load_dotenv
 
 os.environ["DEEPSEEK_API_KEY"] = _KEY
 os.environ["DEEPSEEK_BASE_URL"] = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+# ★ مدلِ تست (طبق درخواست):
 os.environ["DEEPSEEK_MODEL"] = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
 
 # ★ لوگوی شرکت: مسیرِ فایل یا URL. خالی = نشانِ پیش‌فرض.
@@ -51,7 +51,7 @@ LOGO_SRC = "data/logo.png"
 try:
     PROJECT = os.path.dirname(os.path.abspath(__file__))
 except NameError:
-    PROJECT = "/kaggle/working/ChatBot-v2"
+    PROJECT = "C:/Users/sina/PycharmProjects/ChatBot-v2/.claude/worktrees/wizardly-agnesi-6d8824"
 if PROJECT not in sys.path:
     sys.path.insert(0, PROJECT)
 os.chdir(PROJECT)
@@ -60,8 +60,8 @@ import re  # noqa: E402
 
 import gradio as gr  # noqa: E402
 
-from config.settings import settings  # noqa: E402
 from src.conversation.manager import ConversationManager  # noqa: E402
+from src.db.database import get_database  # noqa: E402
 from src.faq import load_faq, search_faq  # noqa: E402
 from src.tickets.store import TicketStore  # noqa: E402
 
@@ -76,7 +76,7 @@ except Exception as exc:
         "→ Ensure the DEEPSEEK_API_KEY secret exists and notebook internet is ON."
     )
 TAX = MANAGER.taxonomy
-STORE = TicketStore(settings.tickets_log_path)
+STORE = TicketStore(get_database())
 FAQ_CATEGORIES, FAQ_ITEMS = load_faq()
 _FAQ_BY_QUESTION = {it.question: it for it in FAQ_ITEMS}
 

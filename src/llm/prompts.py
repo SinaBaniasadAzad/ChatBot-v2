@@ -151,12 +151,37 @@ def build_system_prompt(tax: Taxonomy, demonstrations: list[dict]) -> str:
     return "\n".join(blocks)
 
 
+_PRECEDENT_DESC_CHARS = 280  # سقفِ طولِ توضیحاتِ هر سابقه (کنترلِ هزینهٔ توکن)
+
+
 def build_user_prompt(
     summary: str,
     description: str,
     clarifications: list[tuple[str, str]] | None = None,
+    precedents: list[dict] | None = None,
 ) -> str:
-    lines = ["Ticket:", f"Summary: {summary}", f"Description: {description}"]
+    """پیامِ کاربر؛ سوابقِ بازیابی‌شده *این‌جا* تزریق می‌شوند (نه در system prompt)
+    تا پیشوندِ ثابتِ system از prompt cache بهره‌مند بماند.
+
+    precedents: ردیف‌های tickets_clean (کلیدهای summary/description/layer1/layer2).
+    """
+    lines: list[str] = []
+    if precedents:
+        lines.append(
+            "Labeled PRECEDENTS — the most similar past tickets from THIS organization's "
+            "history (most similar first). This organization's labeling conventions "
+            "sometimes differ from generic intuition; treat these precedents as strong "
+            "hints for both layers, but still verify against the ticket's own evidence:"
+        )
+        for p in precedents:
+            item = {
+                "summary": p.get("summary", ""),
+                "description": (p.get("description") or "")[:_PRECEDENT_DESC_CHARS],
+                "labels": {k: p.get(k) for k in ("layer1", "layer2") if p.get(k)},
+            }
+            lines.append(json.dumps(item, ensure_ascii=False))
+        lines.append("")
+    lines += ["Ticket:", f"Summary: {summary}", f"Description: {description}"]
     if clarifications:
         lines.append("\nClarifications (follow-up Q&A):")
         for q, a in clarifications:

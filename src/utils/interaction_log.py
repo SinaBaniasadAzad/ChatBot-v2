@@ -1,21 +1,20 @@
 """
-ثبت ماندگارِ تعاملات به فرمت JSONL (هر خط یک رویداد).
+ثبتِ ماندگارِ تعاملات در جدولِ interactions (SQLite).
 
-چرا JSONL؟ append-only، مقاوم، و تحلیلش با pandas/jq ساده است.
+شکلِ رکورد (payload) دقیقاً همان JSONLِ قبلی است؛ ابزارهای تحلیل (cost_report و
+pandas/jq) با scripts/export_interactions.py همان فایلِ JSONL را می‌گیرند.
 چه چیزی ذخیره می‌شود؟ تیکت، سوال‌های تکمیلی + پاسخ کاربر، خروجی خام مدل (کاندیدا +
-شواهد)، تصمیم نهایی، و متادیتای LLM (مدل، latency، مصرف توکن). این داده‌ها سرمایهٔ
-ساخت Gold Set، تحلیل خطا، و تیون prompt هستند.
+شواهد)، تصمیم نهایی، و متادیتای LLM (مدل، latency، مصرف توکن).
 
-نکتهٔ امنیتی: تیکت‌ها حاوی دادهٔ پرسنلی (نام، کد پرسنلی) هستند؛ این لاگ‌ها PII دارند —
-پوشهٔ logs/ در .gitignore است و باید سیاست نگه‌داری/دسترسی برایش تعریف شود.
+نکتهٔ امنیتی: این داده‌ها PII دارند (متنِ تیکت)؛ سیاستِ نگه‌داری در
+src/db/maintenance.py اعمال می‌شود (پیش‌فرض: حذف پس از ۹۰ روز).
 """
 from __future__ import annotations
 
 import json
-import threading
 from datetime import datetime, timezone
-from pathlib import Path
 
+from src.db.database import Database
 from src.utils.logging import get_logger
 
 log = get_logger("interaction_log")
@@ -26,21 +25,24 @@ def _now() -> str:
 
 
 class InteractionLogger:
-    def __init__(self, enabled: bool, path: Path) -> None:
+    def __init__(self, enabled: bool, db: Database) -> None:
         self.enabled = enabled
-        self.path = Path(path)
-        self._lock = threading.Lock()
-        if self.enabled:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.db = db
 
     def _write(self, record: dict) -> None:
         if not self.enabled:
             return
-        line = json.dumps(record, ensure_ascii=False)
         try:
-            with self._lock, open(self.path, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
-        except OSError as e:  # لاگ نباید جریان اصلی را بشکند
+            self.db.conn.execute(
+                "INSERT INTO interactions(ts, event, session_id, payload) VALUES (?,?,?,?)",
+                (
+                    record["ts"],
+                    record["event"],
+                    record.get("session_id", ""),
+                    json.dumps(record, ensure_ascii=False),
+                ),
+            )
+        except Exception as e:  # لاگ نباید جریان اصلی را بشکند
             log.warning("نوشتن لاگ تعامل ناموفق بود: %s", e)
 
     @staticmethod
