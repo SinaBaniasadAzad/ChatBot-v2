@@ -1,5 +1,5 @@
 """بکاپِ منطقیِ SQLite با VACUUM INTO — یک فایلِ فشرده و سازگار، امن حینِ کارِ سرویس.
-010101
+0101010
 اجرا (داخل کانتینر یا venv):
     python -m scripts.backup_db                         # → backups/app-YYYYmmdd-HHMMSS.db
     python -m scripts.backup_db --out-dir /data/backups --keep 14
