@@ -13,7 +13,7 @@
 #  بهترین دقت را داد (مثلاً «امکانِ ثبت ندارم» ۸۹٪ Incident است). فقط «layer2 (حوزه)»
 #  بر پایهٔ آمارِ کلِ دیتاست اصلاح شده (پوزیشن/قرارداد/checkout → ERP، نه Staff).
 # ============================================================================
-
+0
 meta:
   languages: [fa, en]
   notes: "Layer ids are JSON keys in the model output. Label ids are stable slugs."
