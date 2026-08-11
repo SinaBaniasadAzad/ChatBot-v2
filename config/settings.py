@@ -3,7 +3,7 @@ from __future__ import annotations
 00110011
 import os
 from pathlib import Path
-01010
+010101
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
