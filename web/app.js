@@ -5,7 +5,7 @@
    ============================================================ */
 (() => {
   'use strict';
-0000000
+00000000
   // ---------- Label metadata ----------
   const LAYER_CAPTIONS = { layer1: 'Type', layer2: 'Domain' };
   const LABELS = {
