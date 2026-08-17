@@ -1,9 +1,9 @@
 """بارگذاری پیکربندی از .env و مسیرهای پروژه."""
 from __future__ import annotations
-00110011000
+
 import os
 from pathlib import Path
-00001111
+
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
